@@ -3,7 +3,6 @@ import net.sf.saxon.om.AxisIteratorImpl;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.pattern.NodeTest;
-import net.sf.saxon.style.StandardNames;
 
 /**
 * This class supports both the descendant:: and descendant-or-self:: axes, which are
@@ -58,6 +57,7 @@ final class DescendantEnumeration extends AxisIteratorImpl {
                 // this shouldn't happen. If it does happen, it means the tree wasn't properly closed
                 // during construction (there is no stopper node at the end). In this case, we'll recover
                 // by returning end-of sequence
+                //System.err.println("********* no stopper node **********");
                 nextNodeNr = -1;
                 current = null;
                 position = -1;
@@ -66,11 +66,11 @@ final class DescendantEnumeration extends AxisIteratorImpl {
         } while (!test.matches(tree, nextNodeNr));
 
         position++;
-        if (isAtomizing() && tree.getTypeAnnotation(nextNodeNr) == StandardNames.XDT_UNTYPED) {
-            current = tree.getAtomizedValueOfUntypedNode(nextNodeNr);
-        } else {
+//        if (isAtomizing() && tree.getTypeAnnotation(nextNodeNr) == StandardNames.XDT_UNTYPED) {
+//            current = tree.getAtomizedValueOfUntypedNode(nextNodeNr);
+//        } else {
             current = tree.getNode(nextNodeNr);
-        }
+//        }
 
         return current;
     }

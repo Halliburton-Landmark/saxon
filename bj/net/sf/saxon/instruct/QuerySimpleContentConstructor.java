@@ -2,13 +2,13 @@ package net.sf.saxon.instruct;
 
 import net.sf.saxon.expr.Atomizer;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.expr.StaticProperty;
+import net.sf.saxon.expr.XPathContext;
+import net.sf.saxon.om.FastStringBuffer;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.om.SequenceIterator;
-import net.sf.saxon.om.FastStringBuffer;
 import net.sf.saxon.trans.XPathException;
-import net.sf.saxon.type.Type;
+import net.sf.saxon.type.BuiltInAtomicType;
 import net.sf.saxon.value.AtomicValue;
 import net.sf.saxon.value.StringValue;
 
@@ -29,6 +29,10 @@ public class QuerySimpleContentConstructor extends SimpleContentConstructor {
         this.noNodeIfEmpty = noNodeIfEmpty;
     }
 
+    public boolean isNoNodeWhenEmpty() {
+        return noNodeIfEmpty;
+    }
+
     /**
      * Compute the cardinality of the result of the expression.
      * @return the cardinality, @link {StaticProperty.EXACTLY_ONE}
@@ -40,6 +44,15 @@ public class QuerySimpleContentConstructor extends SimpleContentConstructor {
         } else {
             return StaticProperty.EXACTLY_ONE;
         }
+    }
+
+    /**
+     * Copy an expression. This makes a deep copy.
+     * @return the copy of the original expression
+     */
+
+    public Expression copy() {
+        return new QuerySimpleContentConstructor(select.copy(), separator.copy(), noNodeIfEmpty);
     }
 
     /**
@@ -88,12 +101,12 @@ public class QuerySimpleContentConstructor extends SimpleContentConstructor {
             if (item instanceof StringValue) {
                 return item;
             } else {
-                return ((AtomicValue)item).convert(Type.STRING, context);
+                return ((AtomicValue)item).convert(BuiltInAtomicType.STRING, true, context).asAtomic();
             }
         }
         SequenceIterator iter = select.iterate(context);
         if (!isAtomic) {
-            iter = Atomizer.AtomizingFunction.getAtomizingIterator(iter);
+            iter = Atomizer.getAtomizingIterator(iter);
         }
         FastStringBuffer sb = new FastStringBuffer(1024);
         boolean first = true;

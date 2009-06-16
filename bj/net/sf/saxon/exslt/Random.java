@@ -1,8 +1,8 @@
 package net.sf.saxon.exslt;
 
-import net.sf.saxon.om.AxisIteratorImpl;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.om.SequenceIterator;
+import net.sf.saxon.om.UnfailingIterator;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.DoubleValue;
 
@@ -62,8 +62,10 @@ public abstract class Random {
      * Iterator over a sequence of random numbers
      */
 
-    private static class RandomIterator extends AxisIteratorImpl {
+    private static class RandomIterator implements UnfailingIterator {
 
+        protected int position = 0;
+        protected Item current;
         private int count;
         private long seed;
         private java.util.Random generator;
@@ -91,6 +93,27 @@ public abstract class Random {
         }
 
         /**
+         * Get the current node in the sequence.
+         * @return the node returned by the most recent call on next()
+         */
+
+        public final Item current() {
+            return current;
+        }
+
+        /**
+         * Get the current position
+         * @return the position of the most recent node returned by next()
+         */
+
+        public final int position() {
+            return position;
+        }
+
+        public void close() {
+        }
+
+        /**
          * Get another SequenceIterator that iterates over the same items as the original,
          * but which is repositioned at the start of the sequence.
          *
@@ -101,6 +124,11 @@ public abstract class Random {
         public SequenceIterator getAnother() {
             return new RandomIterator(count, seed);
         }
+
+        public int getProperties() {
+            return 0;
+        }
+
     }
 }
 

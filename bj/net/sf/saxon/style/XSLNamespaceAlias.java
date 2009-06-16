@@ -4,7 +4,9 @@ import net.sf.saxon.instruct.Executable;
 import net.sf.saxon.om.AttributeCollection;
 import net.sf.saxon.om.NamePool;
 import net.sf.saxon.om.NamespaceException;
+import net.sf.saxon.om.StandardNames;
 import net.sf.saxon.trans.XPathException;
+import net.sf.saxon.value.Whitespace;
 
 
 /**
@@ -27,9 +29,9 @@ public class XSLNamespaceAlias extends StyleElement {
 			int nc = atts.getNameCode(a);
 			String f = getNamePool().getClarkName(nc);
 			if (f==StandardNames.STYLESHEET_PREFIX) {
-        		stylesheetPrefix = atts.getValue(a).trim();
+        		stylesheetPrefix = Whitespace.trim(atts.getValue(a));
         	} else if (f==StandardNames.RESULT_PREFIX) {
-        		resultPrefix = atts.getValue(a).trim();
+        		resultPrefix = Whitespace.trim(atts.getValue(a));
         	} else {
         		checkUnknownAttribute(nc);
         	}

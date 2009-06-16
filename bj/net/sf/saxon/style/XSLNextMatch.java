@@ -1,9 +1,11 @@
 package net.sf.saxon.style;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.ExpressionTool;
 import net.sf.saxon.instruct.Executable;
 import net.sf.saxon.instruct.NextMatch;
-import net.sf.saxon.om.*;
+import net.sf.saxon.om.AttributeCollection;
+import net.sf.saxon.om.Axis;
+import net.sf.saxon.om.AxisIterator;
+import net.sf.saxon.om.NodeInfo;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.Type;
 import net.sf.saxon.value.Whitespace;
@@ -14,6 +16,7 @@ import net.sf.saxon.value.Whitespace;
 
 public class XSLNextMatch extends StyleElement {
 
+    private boolean useTailRecursion = false;
 
     /**
     * Determine whether this node is an instruction.
@@ -44,7 +47,6 @@ public class XSLNextMatch extends StyleElement {
     }
 
     public void validate() throws XPathException {
-        checkWithinTemplate();
         AxisIterator kids = iterateAxis(Axis.CHILD);
         while (true) {
             NodeInfo child = (NodeInfo)kids.next();
@@ -66,11 +68,21 @@ public class XSLNextMatch extends StyleElement {
 
     }
 
+
+    /**
+     * Mark tail-recursive calls on templates and functions.
+     * For most instructions, this does nothing.
+     */
+
+    protected boolean markTailCalls() {
+        useTailRecursion = true;
+        return true;
+    }
+
     public Expression compile(Executable exec) throws XPathException {
-        NextMatch inst = new NextMatch(backwardsCompatibleModeIsEnabled());
+        NextMatch inst = new NextMatch(backwardsCompatibleModeIsEnabled(), useTailRecursion);
         inst.setActualParameters(getWithParamInstructions(exec, false, inst),
                                  getWithParamInstructions(exec, true, inst));
-        ExpressionTool.makeParentReferences(inst);
         return inst;
     }
 

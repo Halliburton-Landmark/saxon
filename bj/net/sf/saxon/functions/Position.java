@@ -1,11 +1,12 @@
 package net.sf.saxon.functions;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.StaticContext;
+import net.sf.saxon.expr.ExpressionVisitor;
 import net.sf.saxon.expr.StaticProperty;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.trans.XPathException;
-import net.sf.saxon.value.IntegerValue;
+import net.sf.saxon.type.ItemType;
+import net.sf.saxon.value.Int64Value;
 
 
 
@@ -14,10 +15,22 @@ public class Position extends SystemFunction {
     /**
     * preEvaluate: this method suppresses compile-time evaluation by doing nothing
     * (because the value of the expression depends on the runtime context)
-    */
+     * @param visitor an expression visitor
+     */
 
-    public Expression preEvaluate(StaticContext env) {
+    public Expression preEvaluate(ExpressionVisitor visitor) {
         return this;
+    }
+
+    public Expression typeCheck(ExpressionVisitor visitor, ItemType contextItemType) throws XPathException {
+        if (contextItemType == null) {
+            XPathException err = new XPathException("The context for position() is undefined");
+            err.setErrorCode("XPDY0002");
+            err.setIsTypeError(true);
+            err.setLocator(this);
+            throw err;
+        }
+        return super.typeCheck(visitor, contextItemType);
     }
 
     /**
@@ -25,7 +38,7 @@ public class Position extends SystemFunction {
     */
 
     public Item evaluateItem(XPathContext c) throws XPathException {
-        return new IntegerValue(c.getContextPosition());
+        return Int64Value.makeIntegerValue(c.getContextPosition());
     }
 
     /**

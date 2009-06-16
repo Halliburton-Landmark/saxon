@@ -1,24 +1,64 @@
 package net.sf.saxon.functions;
-import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.StaticContext;
-import net.sf.saxon.sort.Reverser;
+import net.sf.saxon.expr.*;
+import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.trans.XPathException;
+import net.sf.saxon.type.AnyItemType;
+import net.sf.saxon.type.ItemType;
+import net.sf.saxon.type.TypeHierarchy;
+import net.sf.saxon.value.SequenceExtent;
 
 /**
 * Implement XPath function fn:reverse()
 */
 
-public class Reverse extends CompileTimeFunction {
+public class Reverse extends SystemFunction {
 
     /**
-    * Simplify and validate.
-    */
+     * Determine the item type of the value returned by the function
+     *
+     * @param th the type hierarchy cache
+     */
 
-     public Expression simplify(StaticContext env) throws XPathException {
-        Reverser a = new Reverser(argument[0]);
-        a.setParentExpression(getParentExpression());
-        return a.simplify(env);
+    public ItemType getItemType(TypeHierarchy th) {
+        return argument[0].getItemType(th);    //AUTO
     }
+
+    public int computeSpecialProperties() {
+        int baseProps = argument[0].getSpecialProperties();
+        if ((baseProps & StaticProperty.REVERSE_DOCUMENT_ORDER) != 0) {
+            return (baseProps &
+                (~StaticProperty.REVERSE_DOCUMENT_ORDER)) |
+                StaticProperty.ORDERED_NODESET;
+        } else if ((baseProps & StaticProperty.ORDERED_NODESET) != 0) {
+            return (baseProps &
+                (~StaticProperty.ORDERED_NODESET)) |
+                StaticProperty.REVERSE_DOCUMENT_ORDER;
+        } else {
+            return baseProps;
+        }
+    }
+
+    public SequenceIterator iterate(XPathContext context) throws XPathException {
+        SequenceIterator forwards = argument[0].iterate(context);
+        if (forwards instanceof ReversibleIterator) {
+            return ((ReversibleIterator)forwards).getReverseIterator();
+        } else {
+            SequenceExtent extent = new SequenceExtent(forwards);
+            return extent.reverseIterate();
+        }
+    }
+
+    public boolean effectiveBooleanValue(XPathContext context) throws XPathException {
+        // EBV is independent of sequence order unless the sequence mixes atomic values and nodes
+        // Note, calls to get the EBV of reverse() should normally have been rewritten at compile time
+        ItemType type = argument[0].getItemType(context.getConfiguration().getTypeHierarchy());
+        if (type == AnyItemType.getInstance()) {
+            return super.effectiveBooleanValue(context);
+        } else {
+            return argument[0].effectiveBooleanValue(context);
+        }
+    }
+
 
 }
 

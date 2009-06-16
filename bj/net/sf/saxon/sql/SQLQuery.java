@@ -5,13 +5,13 @@ import net.sf.saxon.event.Receiver;
 import net.sf.saxon.event.ReceiverOptions;
 import net.sf.saxon.expr.Expression;
 import net.sf.saxon.expr.SimpleExpression;
+import net.sf.saxon.expr.StringLiteral;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.instruct.Executable;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.om.NamePool;
+import net.sf.saxon.om.StandardNames;
 import net.sf.saxon.style.ExtensionInstruction;
-import net.sf.saxon.style.StandardNames;
-import net.sf.saxon.trans.DynamicError;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.ObjectValue;
 import net.sf.saxon.value.StringValue;
@@ -70,26 +70,27 @@ public class SQLQuery extends ExtensionInstruction {
 
     public void prepareAttributes() throws XPathException {
         // Attributes for SQL-statement
-        String dbCol = attributeList.getValue("", "column");
+        String dbCol = getAttributeValue("", "column");
         if (dbCol == null) {
             reportAbsence("column");
         }
         column = makeAttributeValueTemplate(dbCol);
 
-        String dbTab = attributeList.getValue("", "table");
+        String dbTab = getAttributeValue("", "table");
         if (dbTab == null) {
             reportAbsence("table");
+            dbTab = "saxon-dummy-table";
         }
         table = makeAttributeValueTemplate(dbTab);
 
-        String dbWhere = attributeList.getValue("", "where");
+        String dbWhere = getAttributeValue("", "where");
         if (dbWhere == null) {
-            where = StringValue.EMPTY_STRING;
+            where = new StringLiteral(StringValue.EMPTY_STRING);
         } else {
             where = makeAttributeValueTemplate(dbWhere);
         }
 
-        String connectAtt = attributeList.getValue("", "connection");
+        String connectAtt = getAttributeValue("", "connection");
         if (connectAtt == null) {
             reportAbsence("connection");
         } else {
@@ -98,7 +99,7 @@ public class SQLQuery extends ExtensionInstruction {
 
         // Atributes for row & column element names
 
-        rowTag = attributeList.getValue("", "row-tag");
+        rowTag = getAttributeValue("", "row-tag");
         if (rowTag == null) {
             rowTag = "row";
         }
@@ -106,7 +107,7 @@ public class SQLQuery extends ExtensionInstruction {
             compileError("rowTag must not contain a colon");
         }
 
-        colTag = attributeList.getValue("", "column-tag");
+        colTag = getAttributeValue("", "column-tag");
         if (colTag == null) {
             colTag = "col";
         }
@@ -114,7 +115,7 @@ public class SQLQuery extends ExtensionInstruction {
             compileError("colTag must not contain a colon");
         }
         // Attribute output-escaping
-        String disableAtt = attributeList.getValue("", "disable-output-escaping");
+        String disableAtt = getAttributeValue("", "disable-output-escaping");
         if (disableAtt != null) {
             if (disableAtt.equals("yes")) {
                 disable = true;
@@ -136,10 +137,9 @@ public class SQLQuery extends ExtensionInstruction {
     }
 
     public Expression compile(Executable exec) throws XPathException {
-        QueryInstruction inst = new QueryInstruction(connection,
+        return new QueryInstruction(connection,
                 column, table, where,
                 rowTag, colTag, disable);
-        return inst;
     }
 
     private static class QueryInstruction extends SimpleExpression {
@@ -185,15 +185,15 @@ public class SQLQuery extends ExtensionInstruction {
             Controller controller = context.getController();
             Item conn = arguments[CONNECTION].evaluateItem(context);
             if (!(conn instanceof ObjectValue && ((ObjectValue)conn).getObject() instanceof Connection)) {
-                DynamicError de = new DynamicError("Value of connection expression is not a JDBC Connection");
+                XPathException de = new XPathException("Value of connection expression is not a JDBC Connection");
                 de.setXPathContext(context);
                 throw de;
             }
             Connection connection = (Connection)((ObjectValue)conn).getObject();
 
-            String dbCol = arguments[COLUMN].evaluateAsString(context);
-            String dbTab = arguments[TABLE].evaluateAsString(context);
-            String dbWhere = arguments[WHERE].evaluateAsString(context);
+            String dbCol = arguments[COLUMN].evaluateAsString(context).toString();
+            String dbTab = arguments[TABLE].evaluateAsString(context).toString();
+            String dbWhere = arguments[WHERE].evaluateAsString(context).toString();
 
 
             NamePool pool = controller.getNamePool();
@@ -202,12 +202,12 @@ public class SQLQuery extends ExtensionInstruction {
 
             PreparedStatement ps = null;
             ResultSet rs = null;
-            DynamicError de = null;
+            XPathException de = null;
 
             try {
                 StringBuffer statement = new StringBuffer();
                 statement.append("SELECT " + dbCol + " FROM " + dbTab);
-                if (dbWhere != "") {
+                if (!dbWhere.equals("")) {
                     statement.append(" WHERE " + dbWhere);
                 }
                 //System.err.println("-> SQL: " + statement.toString());
@@ -225,12 +225,12 @@ public class SQLQuery extends ExtensionInstruction {
                 int icol = rs.getMetaData().getColumnCount();
                 while (rs.next()) {                            // next row
                     //System.out.print("<- SQL : "+ rowStart);
-                    out.startElement(rowCode, StandardNames.XDT_UNTYPED, locationId, 0);
+                    out.startElement(rowCode, StandardNames.XS_UNTYPED, locationId, 0);
                     for (int col = 1; col <= icol; col++) {     // next column
                         // Read result from RS only once, because
                         // of JDBC-Specifications
                         result = rs.getString(col);
-                        out.startElement(colCode, StandardNames.XDT_UNTYPED, locationId, 0);
+                        out.startElement(colCode, StandardNames.XS_UNTYPED, locationId, 0);
                         if (result != null) {
                             out.characters(result, locationId, options);
                         }
@@ -246,7 +246,7 @@ public class SQLQuery extends ExtensionInstruction {
                 }
 
             } catch (SQLException ex) {
-                de = new DynamicError("(SQL) " + ex.getMessage());
+                de = new XPathException("(SQL) " + ex.getMessage());
                 de.setXPathContext(context);
                 throw de;
             } finally {
@@ -255,7 +255,7 @@ public class SQLQuery extends ExtensionInstruction {
                     try {
                         rs.close();
                     } catch (SQLException ex) {
-                        de = new DynamicError("(SQL) " + ex.getMessage());
+                        de = new XPathException("(SQL) " + ex.getMessage());
                         de.setXPathContext(context);
                     }
                 }
@@ -263,7 +263,7 @@ public class SQLQuery extends ExtensionInstruction {
                     try {
                         ps.close();
                     } catch (SQLException ex) {
-                        de = new DynamicError("(SQL) " + ex.getMessage());
+                        de = new XPathException("(SQL) " + ex.getMessage());
                         de.setXPathContext(context);
                     }
                 }

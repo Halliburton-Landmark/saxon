@@ -1,8 +1,8 @@
 package net.sf.saxon.functions;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.StaticContext;
+import net.sf.saxon.expr.ExpressionVisitor;
+import net.sf.saxon.expr.StringLiteral;
 import net.sf.saxon.trans.XPathException;
-import net.sf.saxon.value.StringValue;
 
 /**
 * Implement the XPath 2.0 default-collation() function
@@ -12,11 +12,12 @@ public class DefaultCollation extends CompileTimeFunction {
 
     /**
     * Pre-evaluate the function
-    */
+     * @param visitor an expression visitor
+     */
 
-    public Expression preEvaluate(StaticContext env) throws XPathException {
-        String s = env.getDefaultCollationName();
-        return new StringValue(s);
+    public Expression preEvaluate(ExpressionVisitor visitor) throws XPathException {
+        String s = visitor.getStaticContext().getDefaultCollationName();
+        return new StringLiteral(s);
     }
 
 }

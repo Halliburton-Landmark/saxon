@@ -3,12 +3,10 @@ package net.sf.saxon.xqj;
 import net.sf.saxon.expr.Expression;
 import net.sf.saxon.instruct.GlobalParam;
 import net.sf.saxon.instruct.GlobalVariable;
-import net.sf.saxon.javax.xml.xquery.*;
-import net.sf.saxon.om.NamePool;
 import net.sf.saxon.om.SequenceIterator;
+import net.sf.saxon.om.StructuredQName;
 import net.sf.saxon.query.DynamicQueryContext;
 import net.sf.saxon.query.XQueryExpression;
-import net.sf.saxon.sort.IntHashMap;
 import net.sf.saxon.sort.IntHashSet;
 import net.sf.saxon.sort.IntIterator;
 import net.sf.saxon.trans.XPathException;
@@ -18,6 +16,9 @@ import net.sf.saxon.value.SequenceType;
 import net.sf.saxon.value.Value;
 
 import javax.xml.namespace.QName;
+import javax.xml.xquery.*;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -35,29 +36,29 @@ import java.util.Set;
 public class SaxonXQPreparedExpression extends SaxonXQDynamicContext implements XQPreparedExpression {
 
     private XQueryExpression expression;
+    private SaxonXQStaticContext staticContext;
     private DynamicQueryContext context;
-    private SaxonXQConnection connection;
-    private boolean closed;
     private boolean scrollable;
 
     protected SaxonXQPreparedExpression(SaxonXQConnection connection,
                                         XQueryExpression expression,
+                                        SaxonXQStaticContext sqc,
                                         DynamicQueryContext context)
     throws XQException {
         this.connection = connection;
         this.expression = expression;
+        this.staticContext = sqc;
         this.context = context;
-        this.scrollable = connection.getScrollability() == XQConstants.SCROLLTYPE_SCROLLABLE;
+        scrollable = sqc.getScrollability() == XQConstants.SCROLLTYPE_SCROLLABLE;
+        setClosableContainer(connection);
     }
 
     protected DynamicQueryContext getDynamicContext() {
         return context;
     }
 
-    protected void checkNotClosed() throws XQException {
-        if (isClosed()) {
-            throw new XQException("Expression has been closed");
-        }
+    protected SaxonXQConnection getConnection() {
+        return connection;
     }
 
     protected SaxonXQDataFactory getDataFactory() throws XQException {
@@ -68,17 +69,16 @@ public class SaxonXQPreparedExpression extends SaxonXQDynamicContext implements 
         return connection;
     }
 
+    protected XQueryExpression getXQueryExpression() {
+        return expression;
+    }
+
+    protected SaxonXQStaticContext getSaxonXQStaticContext() {
+        return staticContext;
+    }
+
     public void cancel()  throws XQException {
         checkNotClosed();
-        //To change body of implemented methods use File | Settings | File Templates.
-    }
-
-    public void clearWarnings() {
-        //To change body of implemented methods use File | Settings | File Templates.
-    }
-
-    public void close() {
-        closed = true;
     }
 
     public XQResultSequence executeQuery() throws XQException {
@@ -87,37 +87,44 @@ public class SaxonXQPreparedExpression extends SaxonXQDynamicContext implements 
             SequenceIterator iter = expression.iterator(context);
             if (scrollable) {
                 Value value = Value.asValue(SequenceExtent.makeSequenceExtent(iter));
-                return new SaxonXQSequence(value, connection.getConfiguration(), connection);
+                return new SaxonXQSequence(value, this);
             } else {
-                return new SaxonXQForwardSequence(iter, connection);
+                return new SaxonXQForwardSequence(iter, this);
             }
         } catch (XPathException de) {
-            throw new XQException(de.getMessage(), de, null, null);
+            XQException xqe = new XQException(de.getMessage());
+            xqe.initCause(de);
+            throw xqe;
         }
     }
 
     public QName[] getAllExternalVariables() throws XQException {
         checkNotClosed();
-        IntHashMap vars = expression.getExecutable().getCompiledGlobalVariables();
-        IntHashSet params = new IntHashSet(vars.size());
-        Iterator iter = vars.valueIterator();
-        while (iter.hasNext()) {
-            GlobalVariable var = (GlobalVariable)iter.next();
-            if (var instanceof GlobalParam) {
-                params.add(var.getVariableFingerprint());
-            };
+        HashMap vars = expression.getExecutable().getCompiledGlobalVariables();
+        if (vars == null || vars.isEmpty()) {
+            return EMPTY_QNAME_ARRAY;
+        } else {
+            HashSet params = new HashSet(vars.size());
+            Iterator iter = vars.values().iterator();
+            while (iter.hasNext()) {
+                GlobalVariable var = (GlobalVariable)iter.next();
+                if (var instanceof GlobalParam) {
+                    params.add(var.getVariableQName());
+                }
+            }
+            QName[] qnames = new QName[params.size()];
+            int q=0;
+            for (Iterator it=params.iterator(); it.hasNext();) {
+                StructuredQName name = (StructuredQName)it.next();
+                qnames[q++] = new QName(name.getNamespaceURI(), name.getLocalName(), name.getPrefix());
+            }
+            return qnames;
         }
-        QName[] qnames = new QName[params.size()];
-        int q=0;
-        NamePool pool = connection.getConfiguration().getNamePool();
-        for (IntIterator it=params.iterator(); it.hasNext();) {
-            int fp = it.next();
-            qnames[q++] = new QName(pool.getURI(fp), pool.getLocalName(fp), pool.getPrefix(fp));
-        }
-        return qnames;
     }
 
-    public QName[] getUnboundExternalVariables() throws XQException {
+    private static QName[] EMPTY_QNAME_ARRAY = new QName[0];
+
+    public QName[] getAllUnboundExternalVariables() throws XQException {
         checkNotClosed();
         Set boundParameters = getDynamicContext().getParameters().keySet();
         IntHashSet unbound = new IntHashSet(boundParameters.size());
@@ -138,9 +145,9 @@ public class SaxonXQPreparedExpression extends SaxonXQDynamicContext implements 
         return unboundq;
     }
 
-    public int getQueryTimeout() throws XQException {
+    public XQStaticContext getStaticContext() throws XQException {
         checkNotClosed();
-        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+        return new SaxonXQExpressionContext(expression);
     }
 
     public XQSequenceType getStaticResultType() throws XQException {
@@ -154,32 +161,31 @@ public class SaxonXQPreparedExpression extends SaxonXQDynamicContext implements 
 
     public XQSequenceType getStaticVariableType(QName name) throws XQException {
         checkNotClosed();
-        NamePool pool = connection.getConfiguration().getNamePool();
-        int fp = pool.allocate(name.getPrefix(), name.getNamespaceURI(), name.getLocalPart()) & NamePool.FP_MASK;
-        IntHashMap vars = expression.getExecutable().getCompiledGlobalVariables();
-        GlobalVariable var = (GlobalVariable)vars.get(fp);
+        checkNotNull(name);
+        StructuredQName qn = new StructuredQName(
+                name.getPrefix(), name.getNamespaceURI(), name.getLocalPart());
+        HashMap vars = expression.getExecutable().getCompiledGlobalVariables();
+        GlobalVariable var = (vars == null ? null : (GlobalVariable)vars.get(qn));
         if (var == null) {
             throw new XQException("Variable " + name + " is not declared");
         }
         return new SaxonXQSequenceType(var.getRequiredType(), connection.getConfiguration());
     }
 
-    public XQWarning getWarnings() throws XQException {
-        checkNotClosed();
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+
+    protected boolean externalVariableExists(QName name) {
+        StructuredQName qn = new StructuredQName(
+                name.getPrefix(), name.getNamespaceURI(), name.getLocalPart());
+        HashMap vars = expression.getExecutable().getCompiledGlobalVariables();
+        GlobalVariable var = (vars == null ? null : (GlobalVariable)vars.get(qn));
+        return var != null && var instanceof GlobalParam;
     }
 
-    public boolean isClosed() {
-        if (connection.isClosed()) {
-            close();
+    private void checkNotNull(Object arg) throws XQException {
+        if (arg == null) {
+            throw new XQException("Argument is null");
         }
-        return closed;
     }
-
-    public void setQueryTimeout(int seconds) {
-        //To change body of implemented methods use File | Settings | File Templates.
-    }
-
 
 }
 //

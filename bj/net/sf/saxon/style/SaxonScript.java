@@ -2,10 +2,11 @@ package net.sf.saxon.style;
 import net.sf.saxon.expr.Expression;
 import net.sf.saxon.instruct.Executable;
 import net.sf.saxon.om.AttributeCollection;
-import net.sf.saxon.trans.XPathException;
+import net.sf.saxon.om.StandardNames;
 import net.sf.saxon.trans.SaxonErrorCode;
+import net.sf.saxon.trans.XPathException;
+import net.sf.saxon.value.Whitespace;
 
-import javax.xml.transform.TransformerException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -34,13 +35,13 @@ public class SaxonScript extends StyleElement {
 			int nc = atts.getNameCode(a);
 			String f = getNamePool().getClarkName(nc);
 			if (f==StandardNames.LANGUAGE) {
-        		languageAtt = atts.getValue(a).trim();
+        		languageAtt = Whitespace.trim(atts.getValue(a));
         	} else if (f==StandardNames.IMPLEMENTS_PREFIX) {
-        		implementsAtt = atts.getValue(a).trim();
+        		implementsAtt = Whitespace.trim(atts.getValue(a));
         	} else if (f==StandardNames.SRC) {
-        		srcAtt = atts.getValue(a).trim();
+        		srcAtt = Whitespace.trim(atts.getValue(a));
         	} else if (f==StandardNames.ARCHIVE) {
-        		archiveAtt = atts.getValue(a).trim();
+        		archiveAtt = Whitespace.trim(atts.getValue(a));
         	} else {
         		checkUnknownAttribute(nc);
         	}
@@ -75,7 +76,7 @@ public class SaxonScript extends StyleElement {
             if (archiveAtt==null) {
                 try {
                     javaClass = getConfiguration().getClass(className, false, null);
-                } catch (TransformerException err) {
+                } catch (XPathException err) {
                     compileError(err);
                     return;
                 }
@@ -87,7 +88,7 @@ public class SaxonScript extends StyleElement {
                     compileError("Invalid base URI " + getBaseURI());
                     return;
                 }
-                StringTokenizer st = new StringTokenizer(archiveAtt);
+                StringTokenizer st = new StringTokenizer(archiveAtt, " \t\n\r", false);
                 int count = 0;
                 while (st.hasMoreTokens()) {
                     count++;
@@ -95,7 +96,7 @@ public class SaxonScript extends StyleElement {
                 }
                 URL[] urls = new URL[count];
                 count = 0;
-                st = new StringTokenizer(archiveAtt);
+                st = new StringTokenizer(archiveAtt, " \t\n\r", false);
                 while (st.hasMoreTokens()) {
                     String s = st.nextToken();
                     try {

@@ -1,11 +1,11 @@
 package net.sf.saxon.instruct;
-import net.sf.saxon.trans.DynamicError;
+import net.sf.saxon.trans.XPathException;
 
 /**
 * An exception thrown by xsl:message terminate="yes".
 */
 
-public class TerminationException extends DynamicError {
+public class TerminationException extends XPathException {
 
     /**
     * Construct a TerminationException

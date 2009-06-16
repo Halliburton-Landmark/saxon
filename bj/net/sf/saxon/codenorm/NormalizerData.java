@@ -1,8 +1,8 @@
 package net.sf.saxon.codenorm;
 
-import net.sf.saxon.om.XMLChar;
 import net.sf.saxon.sort.IntHashMap;
-import net.sf.saxon.sort.IntToIntHashMap;
+import net.sf.saxon.sort.IntToIntMap;
+import net.sf.saxon.charcode.UTF16;
 
 import java.util.BitSet;
 
@@ -67,8 +67,8 @@ public class NormalizerData {
             if (ch<65536) {
                 buffer.append((char)ch);
             } else {  // output a surrogate pair
-                buffer.append(XMLChar.highSurrogate(ch));
-                buffer.append(XMLChar.lowSurrogate(ch));
+                buffer.append(UTF16.highSurrogate(ch));
+                buffer.append(UTF16.lowSurrogate(ch));
             }
         }
     }
@@ -80,8 +80,8 @@ public class NormalizerData {
     /**
      * Only accessed by NormalizerBuilder.
      */
-    NormalizerData(IntToIntHashMap canonicalClass, IntHashMap decompose,
-      IntToIntHashMap compose, BitSet isCompatibility, BitSet isExcluded) {
+    NormalizerData(IntToIntMap canonicalClass, IntHashMap decompose,
+      IntToIntMap compose, BitSet isCompatibility, BitSet isExcluded) {
         this.canonicalClass = canonicalClass;
         this.decompose = decompose;
         this.compose = compose;
@@ -107,7 +107,7 @@ public class NormalizerData {
     * For now, just use IntHashtable
     * Two-stage tables would be used in an optimized implementation.
     */
-    private IntToIntHashMap canonicalClass;
+    private IntToIntMap canonicalClass;
 
     /**
     * The main data table maps chars to a 32-bit int.
@@ -124,7 +124,7 @@ public class NormalizerData {
     * Maps from pairs of characters to single.
     * If there is no decomposition, the value is NOT_COMPOSITE.
     */
-    private IntToIntHashMap compose;
+    private IntToIntMap compose;
 
     /**
     * Tells whether decomposition is canonical or not.

@@ -27,7 +27,7 @@ very much for advanced users only, for example the ability to declare variables 
 the ability to specify a NamePool to be used. One aspect of the static context that you may need
 to use is the ability to declare collations. Using the method <code>declareCollation</code> you can
 create a mapping between a collation URI (which can then be used anywhere in the Query) and a Java
-<code>Comparator</code> object used to implement that collation.</p>
+<code>StringCollator</code> object used to implement that collation.</p>
 
 <p>Having created, and possibly configured, the <code>Configuration</code> and
 <code>StaticQueryContext</code> objects, you can now compile a Query using the <code>compileQuery</code>

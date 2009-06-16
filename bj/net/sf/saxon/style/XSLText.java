@@ -1,16 +1,14 @@
 package net.sf.saxon.style;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.ExpressionTool;
+import net.sf.saxon.expr.Literal;
 import net.sf.saxon.instruct.Executable;
 import net.sf.saxon.instruct.ValueOf;
-import net.sf.saxon.om.AttributeCollection;
-import net.sf.saxon.om.Axis;
-import net.sf.saxon.om.AxisIterator;
-import net.sf.saxon.om.Item;
+import net.sf.saxon.om.*;
 import net.sf.saxon.pattern.NodeKindTest;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.ItemType;
 import net.sf.saxon.value.StringValue;
+import net.sf.saxon.value.Whitespace;
 
 /**
 * Handler for xsl:text elements in stylesheet. <BR>
@@ -40,8 +38,8 @@ public class XSLText extends XSLStringConstructor {
 		for (int a=0; a<atts.getLength(); a++) {
 			int nc = atts.getNameCode(a);
 			String f = getNamePool().getClarkName(nc);
-			if (f==StandardNames.DISABLE_OUTPUT_ESCAPING) {
-        		disableAtt = atts.getValue(a).trim();
+			if (f.equals(StandardNames.DISABLE_OUTPUT_ESCAPING)) {
+        		disableAtt = Whitespace.trim(atts.getValue(a));
         	} else {
         		checkUnknownAttribute(nc);
         	}
@@ -59,7 +57,6 @@ public class XSLText extends XSLStringConstructor {
     }
 
     public void validate() throws XPathException {
-        checkWithinTemplate();
 
         // 2.0 spec has reverted to the 1.0 rule that xsl:text may not have child elements
         AxisIterator kids = iterateAxis(Axis.CHILD);
@@ -73,7 +70,7 @@ public class XSLText extends XSLStringConstructor {
                 return;
             } else {
                 value = StringValue.makeStringValue(child.getStringValueCS());
-                continue;
+                //continue;
             }
         }
         super.validate();
@@ -89,10 +86,7 @@ public class XSLText extends XSLStringConstructor {
     }
 
     public Expression compile(Executable exec) throws XPathException {
-        ValueOf inst = new ValueOf(value, disable, false);
-        //compileContent(exec, inst);
-        ExpressionTool.makeParentReferences(inst);
-        return inst;
+        return new ValueOf(Literal.makeLiteral(value), disable, false);
     }
 
 }

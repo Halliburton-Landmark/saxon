@@ -5,7 +5,7 @@ import net.sf.saxon.om.ValueRepresentation;
 import net.sf.saxon.trans.XPathException;
 
 /**
-* Handler for local xsl:variable elements in stylesheet. Not used in XQuery. In fact, the class is used
+ * Handler for local xsl:variable elements in stylesheet. Not used in XQuery. In fact, the class is used
  * only transiently in XSLT: local variables are compiled first to a LocalVariable object, and subsequently
  * to a LetExpression.
 */

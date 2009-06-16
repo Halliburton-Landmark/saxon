@@ -1,10 +1,11 @@
 package net.sf.saxon.functions;
-import net.sf.saxon.expr.Token;
+import net.sf.saxon.expr.ArithmeticExpression;
+import net.sf.saxon.expr.Calculator;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.AtomicValue;
-import net.sf.saxon.value.IntegerValue;
+import net.sf.saxon.value.Int64Value;
 import net.sf.saxon.value.NumericValue;
 import net.sf.saxon.value.StringValue;
 
@@ -24,34 +25,39 @@ public class Substring extends SystemFunction {
         if (av==null) {
             return StringValue.EMPTY_STRING;
         }
-        StringValue sv = (StringValue)av.getPrimitiveValue();
+        StringValue sv = (StringValue)av;
         if (sv.isZeroLength()) {
             return StringValue.EMPTY_STRING;
         }
 
         AtomicValue a1 = (AtomicValue)argument[1].evaluateItem(context);
-        NumericValue a = (NumericValue)a1.getPrimitiveValue();
+        NumericValue a = (NumericValue)a1;
 
         if (argument.length==2) {
             return StringValue.makeStringValue(substring(sv, a));
         } else {
             AtomicValue b2 = (AtomicValue)argument[2].evaluateItem(context);
-            NumericValue b = (NumericValue)b2.getPrimitiveValue();
+            NumericValue b = (NumericValue)b2;
             return StringValue.makeStringValue(substring(sv, a, b, context));
         }
     }
 
     /**
-    * Implement substring function with two arguments.
+     * Implement the substring function with two arguments.
+     * @param sv the string value
+     * @param start the numeric offset (1-based) of the first character to be included in the result
+     * (if not an integer, the XPath rules apply)
+     * @return the substring starting at this position.
     */
 
-    private static CharSequence substring(StringValue sv, NumericValue start) {
+    public static CharSequence substring(StringValue sv, NumericValue start) {
         CharSequence s = sv.getStringValueCS();
         int slength = s.length();
 
         long lstart;
-        if (start instanceof IntegerValue) {
-            lstart = ((IntegerValue)start).longValue();
+        if (start instanceof Int64Value) {
+            //noinspection RedundantCast
+            lstart = ((Int64Value)start).longValue();
             if (lstart > slength) {
                 return "";
             } else if (lstart <= 0) {
@@ -99,17 +105,24 @@ public class Substring extends SystemFunction {
     }
 
     /**
-    * Implement substring function with three arguments.
+     * Implement the substring function with three arguments.
+     * @param sv the string value
+     * @param start the numeric offset (1-based) of the first character to be included in the result
+     * (if not an integer, the XPath rules apply)
+     * @param len the length of the required substring (again, XPath rules apply)
+     * @param context the XPath dynamic context. Provided because some arithmetic computations require it
+     * @return the substring starting at this position.
     */
 
-    private static CharSequence substring(StringValue sv, NumericValue start, NumericValue len, XPathContext context) {
+    public static CharSequence substring(StringValue sv, NumericValue start, NumericValue len, XPathContext context) {
 
         CharSequence s = sv.getStringValueCS();
         int slength = s.length();
 
         long lstart;
-        if (start instanceof IntegerValue) {
-            lstart = ((IntegerValue)start).longValue();
+        if (start instanceof Int64Value) {
+            //noinspection RedundantCast
+            lstart = ((Int64Value)start).longValue();
             if (lstart > slength) {
                 return "";
             }
@@ -137,13 +150,15 @@ public class Substring extends SystemFunction {
 
         NumericValue end;
         try {
-            end = start.arithmetic(Token.PLUS, len.round(), context);
+            //end = start.arithmetic(Token.PLUS, len.round(), context);
+            end = (NumericValue)ArithmeticExpression.compute(start, Calculator.PLUS, len.round(), context);
         } catch (XPathException e) {
             throw new AssertionError("Unexpected arithmetic failure in substring");
         }
         long lend;
-        if (end instanceof IntegerValue) {
-            lend = ((IntegerValue)end).longValue();
+        if (end instanceof Int64Value) {
+            //noinspection RedundantCast
+            lend = ((Int64Value)end).longValue();
         } else {
             // We need to be careful to handle cases such as plus/minus infinity and NaN
             if (end.isNaN()) {

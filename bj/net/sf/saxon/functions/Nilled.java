@@ -1,6 +1,5 @@
 package net.sf.saxon.functions;
 import net.sf.saxon.expr.XPathContext;
-import net.sf.saxon.om.ExtendedNodeInfo;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.om.NodeInfo;
 import net.sf.saxon.trans.XPathException;
@@ -37,11 +36,7 @@ public class Nilled extends SystemFunction {
         if (node==null || node.getNodeKind() != Type.ELEMENT) {
             return null;
         }
-        if (node instanceof ExtendedNodeInfo) {
-            return BooleanValue.get(((ExtendedNodeInfo)node).isNilled());
-        } else {
-            return BooleanValue.FALSE;
-        }
+        return BooleanValue.get(node.isNilled());
 //        int typeAnnotation = node.getTypeAnnotation();
 //        if (typeAnnotation == -1 || typeAnnotation == StandardNames.XDT_UNTYPED) {
 //            return BooleanValue.FALSE;
@@ -63,11 +58,7 @@ public class Nilled extends SystemFunction {
 
     public static boolean isNilled(NodeInfo node) {
         BooleanValue b = getNilledProperty(node);
-        if (b == null) {
-            return false;
-        } else {
-            return b.getBooleanValue();
-        }
+        return b != null && b.getBooleanValue();
     }
 }
 

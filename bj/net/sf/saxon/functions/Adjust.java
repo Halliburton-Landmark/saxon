@@ -1,14 +1,12 @@
 package net.sf.saxon.functions;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.StaticContext;
+import net.sf.saxon.expr.ExpressionVisitor;
 import net.sf.saxon.expr.XPathContext;
-import net.sf.saxon.expr.Container;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.trans.XPathException;
-import net.sf.saxon.trans.DynamicError;
 import net.sf.saxon.value.AtomicValue;
 import net.sf.saxon.value.CalendarValue;
-import net.sf.saxon.value.SecondsDurationValue;
+import net.sf.saxon.value.DayTimeDurationValue;
 
 /**
 * This class implements the XPath 2.0 functions
@@ -18,15 +16,13 @@ import net.sf.saxon.value.SecondsDurationValue;
 
 public class Adjust extends SystemFunction {
 
-    int implicitTimezone; // implicit timezone as offset from UTC in minutes
-
     /**
-    * Simplify and validate.
-    */
+     * Simplify and validate.
+     * @param visitor an expression visitor
+     */
 
-    public Expression simplify(StaticContext env) throws XPathException {
-        implicitTimezone = env.getConfiguration().getImplicitTimezone();
-        return super.simplify(env);
+    public Expression simplify(ExpressionVisitor visitor) throws XPathException {
+        return super.simplify(visitor);
     }
 
     /**
@@ -38,28 +34,21 @@ public class Adjust extends SystemFunction {
         if (av1==null) {
             return null;
         }
-        CalendarValue in = (CalendarValue)av1.getPrimitiveValue();
+        CalendarValue in = (CalendarValue)av1;
 
         int nargs = argument.length;
-        SecondsDurationValue tz;
+        DayTimeDurationValue tz;
         if (nargs==1) {
-            // use the implicit timezone
-//            if (in.hasTimezone()) {
-                return in.adjustTimezone(implicitTimezone);
-//            } else {
-//                in = in.copy();
-//                in.setTimezoneInMinutes(implicitTimezone);
-//                return in;
-//            }
+            return in.adjustTimezone(context.getImplicitTimezone());
         } else {
             AtomicValue av2 = (AtomicValue)argument[1].evaluateItem(context);
             if (av2==null) {
                 return in.removeTimezone();
             }
-            tz = (SecondsDurationValue)av2.getPrimitiveValue();
+            tz = (DayTimeDurationValue)av2;
             long microseconds = tz.getLengthInMicroseconds();
             if (microseconds%60000000 != 0) {
-                DynamicError err = new DynamicError("Timezone is not an integral number of minutes");
+                XPathException err = new XPathException("Timezone is not an integral number of minutes");
                 err.setErrorCode("FODT0003");
                 err.setLocator(this);
                 err.setXPathContext(context);
@@ -67,19 +56,13 @@ public class Adjust extends SystemFunction {
             }
             int tzminutes = (int)(microseconds / 60000000);
             if (Math.abs(tzminutes) > 14*60) {
-                DynamicError err = new DynamicError("Timezone out of range (-14:00 to +14:00)");
+                XPathException err = new XPathException("Timezone out of range (-14:00 to +14:00)");
                 err.setErrorCode("FODT0003");
                 err.setLocator(this);
                 err.setXPathContext(context);
                 throw err;
             }
-//            if (in.hasTimezone()) {
-                return in.adjustTimezone(tzminutes);
-//            } else {
-//                in = in.copy();
-//                in.setTimezoneInMinutes(tzminutes);
-//                return in;
-//            }
+            return in.adjustTimezone(tzminutes);
         }
     }
 

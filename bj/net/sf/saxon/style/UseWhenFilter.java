@@ -5,12 +5,13 @@ import net.sf.saxon.event.ProxyReceiver;
 import net.sf.saxon.event.StartTagBuffer;
 import net.sf.saxon.expr.*;
 import net.sf.saxon.instruct.SlotManager;
-import net.sf.saxon.om.NamespaceConstant;
 import net.sf.saxon.om.NamePool;
-import net.sf.saxon.trans.StaticError;
+import net.sf.saxon.om.NamespaceConstant;
+import net.sf.saxon.om.StandardNames;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.ItemType;
 import net.sf.saxon.type.Type;
+import net.sf.saxon.value.DateTimeValue;
 
 import javax.xml.transform.Source;
 import javax.xml.transform.TransformerException;
@@ -25,8 +26,6 @@ import java.util.Stack;
 
 public class UseWhenFilter extends ProxyReceiver {
 
-    // TODO: the rules now require that all use-when attributes in a stylesheet module share the same "execution scope".
-
     private StartTagBuffer startTag;
     private int useWhenCode;
     private int xslUseWhenCode;
@@ -34,6 +33,12 @@ public class UseWhenFilter extends ProxyReceiver {
     private int depthOfHole = 0;
     private boolean emptyStylesheetElement = false;
     private Stack defaultNamespaceStack = new Stack();
+    private DateTimeValue currentDateTime = DateTimeValue.getCurrentDateTime(null);
+
+    /**
+     * Create a UseWhenFilter
+     * @param startTag a preceding filter on the pipeline that buffers the attributes of a start tag
+     */
 
     public UseWhenFilter(StartTagBuffer startTag) {
         this.startTag = startTag;
@@ -85,7 +90,7 @@ public class UseWhenFilter extends ProxyReceiver {
                         }
                     }
                 } catch (XPathException e) {
-                    StaticError err = new StaticError("Error in use-when expression. " + e.getMessage());
+                    XPathException err = new XPathException("Error in use-when expression. " + e.getMessage());
                     ExpressionLocation loc = new ExpressionLocation();
                     loc.setSystemId(getDocumentLocator().getSystemId(locationId));
                     loc.setLineNumber(getDocumentLocator().getLineNumber(locationId));
@@ -94,7 +99,7 @@ public class UseWhenFilter extends ProxyReceiver {
                     try {
                         getPipelineConfiguration().getErrorListener().fatalError(err);
                     } catch (TransformerException tex) {
-                        throw StaticError.makeStaticError(tex);
+                        throw XPathException.makeXPathException(tex);
                     }
                     err.setHasBeenReported();
                     throw err;
@@ -200,28 +205,35 @@ public class UseWhenFilter extends ProxyReceiver {
 
     /**
      * Evaluate a use-when attribute
+     * @param expression the expression to be evaluated
+     * @param locationId identifies the location of the expression in case error need to be reported
+     * @return the effective boolean value of the result of evaluating the expression
      */
 
     public boolean evaluateUseWhen(String expression, int locationId) throws XPathException {
         UseWhenStaticContext staticContext = new UseWhenStaticContext(getConfiguration(), startTag);
-        // The following is an approximation: it doesn't take account of xml:base attributes
+        // TODO: The following doesn't take account of xml:base attributes
         staticContext.setBaseURI(getDocumentLocator().getSystemId(locationId));
+        staticContext.setDefaultElementNamespace(NamespaceConstant.NULL);
         for (int i=defaultNamespaceStack.size()-1; i>=0; i--) {
             String uri = (String)defaultNamespaceStack.get(i);
             if (uri != null) {
-                short code = getNamePool().getCodeForURI(uri);
-                staticContext.setDefaultElementNamespace(code);
+                staticContext.setDefaultElementNamespace(uri);
                 break;
             }
         }
         Expression expr = ExpressionTool.make(expression, staticContext,
-                0, Token.EOF, getDocumentLocator().getLineNumber(locationId));
+                0, Token.EOF, getDocumentLocator().getLineNumber(locationId), false);
+        expr.setContainer(staticContext);
         ItemType contextItemType = Type.ITEM_TYPE;
-        expr = expr.typeCheck(staticContext, contextItemType);
+        ExpressionVisitor visitor = ExpressionVisitor.make(staticContext);
+        expr = visitor.typeCheck(expr, contextItemType);
         SlotManager stackFrameMap = getPipelineConfiguration().getConfiguration().makeSlotManager();
         ExpressionTool.allocateSlots(expr, stackFrameMap.getNumberOfVariables(), stackFrameMap);
         Controller controller = new Controller(getConfiguration());
         controller.setURIResolver(new URIPreventer());
+        controller.setCurrentDateTime(currentDateTime);
+                // this is to ensure that all use-when expressions in a module use the same date and time
         XPathContext dynamicContext = controller.newXPathContext();
         dynamicContext = dynamicContext.newCleanContext();
         ((XPathContextMajor)dynamicContext).openStackFrame(stackFrameMap);

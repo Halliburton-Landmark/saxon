@@ -1,7 +1,6 @@
 package net.sf.saxon.om;
 
 import net.sf.saxon.expr.LastPositionFinder;
-import net.sf.saxon.expr.ReversibleIterator;
 
 
 /**
@@ -10,8 +9,8 @@ import net.sf.saxon.expr.ReversibleIterator;
   */
 
 
-public final class ReverseArrayIterator implements AxisIterator,
-                                                   ReversibleIterator,
+public class ReverseArrayIterator implements UnfailingIterator,
+        net.sf.saxon.expr.ReversibleIterator,
                                                    LookaheadIterator,
                                                    LastPositionFinder {
 
@@ -73,6 +72,9 @@ public final class ReverseArrayIterator implements AxisIterator,
 
     public int getLastPosition() {
         return end - start;
+    }
+
+    public void close() {
     }
 
     public SequenceIterator getAnother() {

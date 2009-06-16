@@ -3,6 +3,7 @@ package net.sf.saxon.query;
 import net.sf.saxon.expr.BindingReference;
 import net.sf.saxon.expr.VariableDeclaration;
 import net.sf.saxon.instruct.GlobalVariable;
+import net.sf.saxon.instruct.Executable;
 import net.sf.saxon.trans.XPathException;
 
 import java.util.Collections;
@@ -27,7 +28,7 @@ public class UndeclaredVariable extends GlobalVariableDefinition {
         references = Collections.EMPTY_LIST;
     }
 
-    public GlobalVariable compile(StaticQueryContext env, int slot) throws XPathException {
+    public GlobalVariable compile(Executable exec, int slot) throws XPathException {
         throw new UnsupportedOperationException("Attempt to compile a place-holder for an undeclared variable");
     }
 }

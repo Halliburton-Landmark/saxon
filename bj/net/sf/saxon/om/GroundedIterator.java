@@ -1,7 +1,6 @@
 package net.sf.saxon.om;
 
 import net.sf.saxon.trans.XPathException;
-import net.sf.saxon.value.Value;
 
 /**
  * This interface is an extension to the SequenceIterator interface; it represents
@@ -13,12 +12,12 @@ import net.sf.saxon.value.Value;
 public interface GroundedIterator extends SequenceIterator {
 
     /**
-     * Return a Value containing all the items in the sequence returned by this
+     * Return a GroundedValue containing all the items in the sequence returned by this
      * SequenceIterator. This should be an "in-memory" value, not a Closure.
      * @return the corresponding Value
      */
 
-    public Value materialize() throws XPathException;
+    public GroundedValue materialize() throws XPathException;
 }
 
 

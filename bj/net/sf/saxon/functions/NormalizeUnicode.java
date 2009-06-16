@@ -2,10 +2,10 @@ package net.sf.saxon.functions;
 import net.sf.saxon.codenorm.Normalizer;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.om.Item;
-import net.sf.saxon.trans.DynamicError;
+import net.sf.saxon.tinytree.CompressedWhitespace;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.StringValue;
-import net.sf.saxon.tinytree.CompressedWhitespace;
+import net.sf.saxon.value.Whitespace;
 
 /**
  * Implement the XPath normalize-unicode() function
@@ -25,7 +25,7 @@ public class NormalizeUnicode extends SystemFunction {
 
         byte fb = Normalizer.C;
         if (argument.length == 2) {
-            String form = argument[1].evaluateAsString(c).trim();
+            String form = Whitespace.trim(argument[1].evaluateAsString(c));
             if (form.equalsIgnoreCase("NFC")) {
                 fb = Normalizer.C;
             } else if (form.equalsIgnoreCase("NFD")) {
@@ -34,11 +34,11 @@ public class NormalizeUnicode extends SystemFunction {
                 fb = Normalizer.KC;
             } else if (form.equalsIgnoreCase("NFKD")) {
                 fb = Normalizer.KD;
-            } else if (form.equalsIgnoreCase("")) {
+            } else if (form.length() == 0) {
                 return sv;
             } else {
                 String msg = "Normalization form " + form + " is not supported";
-                DynamicError err = new DynamicError(msg);
+                XPathException err = new XPathException(msg);
                 err.setErrorCode("FOCH0003");
                 err.setXPathContext(c);
                 err.setLocator(this);

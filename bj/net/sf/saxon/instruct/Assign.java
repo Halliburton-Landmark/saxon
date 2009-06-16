@@ -1,12 +1,13 @@
 package net.sf.saxon.instruct;
 import net.sf.saxon.expr.*;
 import net.sf.saxon.om.ValueRepresentation;
-import net.sf.saxon.style.StandardNames;
+import net.sf.saxon.om.StandardNames;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.Closure;
 import net.sf.saxon.value.SequenceExtent;
 import net.sf.saxon.value.SequenceType;
 import net.sf.saxon.value.Value;
+import net.sf.saxon.trace.ExpressionPresenter;
 
 /**
 * saxon:assign element in stylesheet.
@@ -50,6 +51,7 @@ public class Assign extends GeneralVariable implements BindingReference {
         switch (offer.action) {
             case PromotionOffer.RANGE_INDEPENDENT:
             case PromotionOffer.FOCUS_INDEPENDENT:
+            case PromotionOffer.EXTRACT_GLOBAL_VARIABLES:
                 return this;
 
             case PromotionOffer.REPLACE_CURRENT:
@@ -79,7 +81,7 @@ public class Assign extends GeneralVariable implements BindingReference {
         }
         ValueRepresentation value = getSelectValue(context);
         if (value instanceof Closure) {
-            value = SequenceExtent.makeSequenceExtent(((Closure)value).iterate(null));
+            value = SequenceExtent.makeSequenceExtent(((Closure)value).iterate());
         }
         if (binding instanceof GeneralVariable) {
             if (binding.isGlobal()) {
@@ -99,6 +101,20 @@ public class Assign extends GeneralVariable implements BindingReference {
 
     public ValueRepresentation evaluateVariable(XPathContext context) throws XPathException {
         throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Diagnostic print of expression structure. The abstract expression tree
+     * is written to the supplied output destination.
+     */
+
+    public void explain(ExpressionPresenter out) {
+        out.startElement("assign");
+        out.emitAttribute("name", variableQName.getDisplayName());
+        if (select != null) {
+            select.explain(out);
+        }
+        out.endElement();
     }
 }
 

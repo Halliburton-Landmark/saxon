@@ -1,7 +1,6 @@
 package net.sf.saxon.event;
 import net.sf.saxon.codenorm.Normalizer;
 import net.sf.saxon.trans.XPathException;
-import net.sf.saxon.trans.DynamicError;
 import net.sf.saxon.value.Whitespace;
 
 /**
@@ -27,7 +26,7 @@ public class UnicodeNormalizer extends ProxyReceiver {
         } else if (form.equals("NFKD")) {
             fb = Normalizer.KD;
         } else {
-            DynamicError err = new DynamicError("Unknown normalization form " + form);
+            XPathException err = new XPathException("Unknown normalization form " + form);
             err.setErrorCode("SESU0011");
             throw err;
         }

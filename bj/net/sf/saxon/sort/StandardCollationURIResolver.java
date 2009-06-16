@@ -1,12 +1,10 @@
 package net.sf.saxon.sort;
 import net.sf.saxon.Configuration;
-import net.sf.saxon.trans.DynamicError;
 import net.sf.saxon.trans.XPathException;
 
 import javax.xml.transform.TransformerException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Comparator;
 import java.util.Properties;
 import java.util.StringTokenizer;
 
@@ -40,16 +38,16 @@ public class StandardCollationURIResolver implements CollationURIResolver {
      * errors, the method returns null after sending a warning to the ErrorListener.
      */
 
-    public Comparator resolve(String uri, String base, Configuration config) {
+    public StringCollator resolve(String uri, String base, Configuration config) {
         try {
             if (uri.equals("http://saxon.sf.net/collation")) {
-                return config.getPlatform().makeCollation(config, new Properties());
+                return Configuration.getPlatform().makeCollation(config, new Properties(), uri);
             } else if (uri.startsWith("http://saxon.sf.net/collation?")) {
                 URI uuri;
                 try {
                     uuri = new URI(uri);
                 } catch (URISyntaxException err) {
-                    throw new DynamicError(err);
+                    throw new XPathException(err);
                 }
                 Properties props = new Properties();
                 String query = uuri.getQuery();
@@ -63,7 +61,7 @@ public class StandardCollationURIResolver implements CollationURIResolver {
                         props.setProperty(kw, val);
                     }
                 }
-                return config.getPlatform().makeCollation(config, props);
+                return Configuration.getPlatform().makeCollation(config, props, uri);
             } else {
                 return null;
             }

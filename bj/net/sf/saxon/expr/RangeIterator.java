@@ -1,80 +1,71 @@
 package net.sf.saxon.expr;
 
-import net.sf.saxon.om.SequenceIterator;
-import net.sf.saxon.om.LookaheadIterator;
-import net.sf.saxon.om.GroundedIterator;
-import net.sf.saxon.om.Item;
-import net.sf.saxon.value.IntegerValue;
-import net.sf.saxon.value.Value;
-import net.sf.saxon.value.IntegerRange;
-import net.sf.saxon.value.SequenceExtent;
+import net.sf.saxon.om.*;
 import net.sf.saxon.trans.XPathException;
+import net.sf.saxon.value.Int64Value;
+import net.sf.saxon.value.IntegerRange;
 
 /**
-* Iterator that produces numeric values in a monotonic sequence,
-* ascending or descending. Although a range expression (N to M) is always
+ * An Iterator that produces numeric values in a monotonic sequence,
+ * ascending or descending. Although a range expression (N to M) is always
  * in ascending order, applying the reverse() function will produce
  * a RangeIterator that works in descending order.
 */
 
 public class RangeIterator implements SequenceIterator,
-                                      ReversibleIterator,
-                                      LastPositionFinder,
+        ReversibleIterator,
+        LastPositionFinder,
         LookaheadIterator,
         GroundedIterator  {
 
     long start;
     long currentValue;
-    int increment;   // always +1 or -1
     long limit;
+
+    /**
+     * Create an iterator over a range of monotonically increasing integers
+     * @param start the first integer in the sequence
+     * @param end the last integer in the sequence. Must be >= start.
+     */
 
     public RangeIterator(long start, long end) {
         this.start = start;
-        increment = (start <= end ? +1 : -1);
-        currentValue = start;
+        currentValue = start - 1;
         limit = end;
     }
 
     public boolean hasNext() {
-        if (increment>0) {
-            return currentValue <= limit;
-        } else if (increment<0) {
-            return currentValue >= limit;
-        } else {
-            return false;
-        }
+        return currentValue < limit;
     }
 
     public Item next() {
-        if (!hasNext()) {
-            increment = 0;
+        if (++currentValue > limit) {
             return null;
         }
-        long d = currentValue;
-        currentValue += increment;
-        return new IntegerValue(d);
+        return Int64Value.makeIntegerValue(currentValue);
     }
 
     public Item current() {
-        if (increment == 0) {
+        if (currentValue > limit) {
             return null;
         } else {
-            return new IntegerValue(currentValue - increment);
+            return Int64Value.makeIntegerValue(currentValue);
         }
     }
 
     public int position() {
-        if (increment > 0) {
-            return (int)(currentValue - start);
-        } else if (increment < 0) {
-            return (int)(start - currentValue);
-        } else {
+        if (currentValue > limit) {
             return -1;
+        } else {
+            return (int)(currentValue - start + 1);
         }
     }
 
+    public void close() {
+    }
+
     public int getLastPosition() {
-        return (int)((limit - start) * increment + 1);
+        return (int)((limit - start) + 1);
     }
 
     public SequenceIterator getAnother() throws XPathException {
@@ -92,15 +83,11 @@ public class RangeIterator implements SequenceIterator,
      */
 
     public int getProperties() {
-        int props = LOOKAHEAD | LAST_POSITION_FINDER;
-        if (increment == 1) {
-            props |= GROUNDED;
-        }
-        return props;
+        return LOOKAHEAD | LAST_POSITION_FINDER | GROUNDED;
     }
 
     public SequenceIterator getReverseIterator() {
-        return new RangeIterator(limit, start);
+        return new ReverseRangeIterator(limit, start);
     }
 
     /**
@@ -110,12 +97,8 @@ public class RangeIterator implements SequenceIterator,
      * @return the corresponding Value
      */
 
-    public Value materialize() throws XPathException {
-        if (increment == 1) {
-            return new IntegerRange(start, limit);
-        } else {
-            return new SequenceExtent(getAnother());
-        }
+    public GroundedValue materialize() throws XPathException {
+        return new IntegerRange(start, limit);
     }
 }
 

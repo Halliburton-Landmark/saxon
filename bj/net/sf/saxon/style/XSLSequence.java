@@ -1,15 +1,11 @@
 package net.sf.saxon.style;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.ExpressionTool;
+import net.sf.saxon.expr.Literal;
 import net.sf.saxon.instruct.Executable;
-import net.sf.saxon.om.AttributeCollection;
-import net.sf.saxon.om.Axis;
-import net.sf.saxon.om.AxisIterator;
-import net.sf.saxon.om.NodeInfo;
+import net.sf.saxon.om.*;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.ItemType;
 import net.sf.saxon.type.TypeHierarchy;
-import net.sf.saxon.value.EmptySequence;
 
 
 /**
@@ -70,7 +66,7 @@ public final class XSLSequence extends StyleElement {
 		for (int a=0; a<atts.getLength(); a++) {
 			int nc = atts.getNameCode(a);
 			String f = getNamePool().getClarkName(nc);
-			if (f==StandardNames.SELECT) {
+			if (f.equals(StandardNames.SELECT)) {
         		selectAtt = atts.getValue(a);
         	} else {
         		checkUnknownAttribute(nc);
@@ -81,12 +77,11 @@ public final class XSLSequence extends StyleElement {
             select = makeExpression(selectAtt);
         } else {
             reportAbsence(StandardNames.SELECT);
-            select = EmptySequence.getInstance();
+            select = Literal.makeEmptySequence();
         }
     }
 
     public void validate() throws XPathException {
-        checkWithinTemplate();
         AxisIterator kids = iterateAxis(Axis.CHILD);
         while (true) {
             NodeInfo child = (NodeInfo)kids.next();
@@ -98,20 +93,6 @@ public final class XSLSequence extends StyleElement {
         }
         select = typeCheck("select", select);
     }
-
-    /**
-    * Mark tail-recursive calls on templates and functions.
-    */
-
-    public void markTailCalls(int nameCode, int arity) {
-        StyleElement last = getLastChildInstruction();
-        if (last != null) {
-            last.markTailCalls();
-        } else if (select != null) {
-            ExpressionTool.markTailFunctionCalls(select, nameCode, arity);
-        }
-    }
-
 
     public Expression compile(Executable exec) {
         return select;

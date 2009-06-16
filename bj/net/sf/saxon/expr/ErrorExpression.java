@@ -1,15 +1,11 @@
 package net.sf.saxon.expr;
 import net.sf.saxon.om.Item;
-import net.sf.saxon.om.NamePool;
 import net.sf.saxon.om.SequenceIterator;
-import net.sf.saxon.trans.DynamicError;
+import net.sf.saxon.trace.ExpressionPresenter;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.AnyItemType;
 import net.sf.saxon.type.ItemType;
 import net.sf.saxon.type.TypeHierarchy;
-import net.sf.saxon.Configuration;
-
-import java.io.PrintStream;
 
 
 /**
@@ -18,7 +14,7 @@ import java.io.PrintStream;
 * the generation of an error message until an attempt is made to evaluate the expression
 */
 
-public class ErrorExpression extends ComputedExpression {
+public class ErrorExpression extends Expression {
 
     private XPathException exception;     // the error found when parsing this expression
 
@@ -33,14 +29,22 @@ public class ErrorExpression extends ComputedExpression {
     };
 
     /**
+     * Get the wrapped exception
+     */
+
+    public XPathException getException() {
+        return exception;
+    }
+
+    /**
     * Type-check the expression.
     */
 
-    public Expression typeCheck(StaticContext env, ItemType contextItemType) throws XPathException {
+    public Expression typeCheck(ExpressionVisitor visitor, ItemType contextItemType) throws XPathException {
         return this;
     }
 
-    public Expression optimize(Optimizer opt, StaticContext env, ItemType contextItemType) throws XPathException {
+    public Expression optimize(ExpressionVisitor visitor, ItemType contextItemType) throws XPathException {
         return this;
     }
 
@@ -51,9 +55,9 @@ public class ErrorExpression extends ComputedExpression {
 
     public Item evaluateItem(XPathContext context) throws XPathException {
         // copy the exception for thread-safety, because we want to add context information
-        DynamicError err = new DynamicError(exception.getMessage());
-        err.setLocator(ExpressionTool.getLocator(this));
-        err.setErrorCode(exception.getErrorCodeLocalPart());
+        XPathException err = new XPathException(exception.getMessage());
+        err.setLocator(this);
+        err.setErrorCode(exception.getErrorCodeNamespace(), exception.getErrorCodeLocalPart());
         err.setXPathContext(context);
         throw err;
     }
@@ -71,7 +75,7 @@ public class ErrorExpression extends ComputedExpression {
     /**
     * Determine the data type of the expression, if possible
     * @return Type.ITEM (meaning not known in advance)
-     * @param th
+     * @param th the type hierarchy cache
      */
 
     public ItemType getItemType(TypeHierarchy th) {
@@ -89,11 +93,24 @@ public class ErrorExpression extends ComputedExpression {
     }
 
     /**
-    * Diagnostic print of expression structure
-    */
+     * Copy an expression. This makes a deep copy.
+     *
+     * @return the copy of the original expression
+     */
 
-    public void display(int level, PrintStream out, Configuration config) {
-        out.println(ExpressionTool.indent(level) + "**ERROR** (" + exception.getMessage() + ')');
+    public Expression copy() {
+        return new ErrorExpression(exception);
+    }
+
+    /**
+     * Diagnostic print of expression structure. The abstract expression tree
+     * is written to the supplied output destination.
+     */
+
+    public void explain(ExpressionPresenter destination) {
+        destination.startElement("error");
+        destination.emitAttribute("message", exception.getMessage());
+        destination.endElement();
     }
 
 }

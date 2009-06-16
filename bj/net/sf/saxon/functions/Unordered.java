@@ -1,8 +1,5 @@
 package net.sf.saxon.functions;
-import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.ExpressionTool;
-import net.sf.saxon.expr.StaticContext;
-import net.sf.saxon.expr.Optimizer;
+import net.sf.saxon.expr.*;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.ItemType;
 
@@ -12,28 +9,30 @@ import net.sf.saxon.type.ItemType;
 
 public class Unordered extends CompileTimeFunction {
 
-    public Expression typeCheck(StaticContext env, ItemType contextItemType) throws XPathException {
-        Expression exp = super.typeCheck(env, contextItemType);
+    public Expression typeCheck(ExpressionVisitor visitor, ItemType contextItemType) throws XPathException {
+        Expression exp = super.typeCheck(visitor, contextItemType);
         if (exp instanceof Unordered) {
-            Optimizer opt = env.getConfiguration().getOptimizer();
-            return ExpressionTool.unsorted(opt, ((Unordered)exp).argument[0], true);
+            Optimizer opt = visitor.getConfiguration().getOptimizer();
+            return ExpressionTool.unsorted(opt, ((Unordered)exp).argument[0], false);
         }
         return exp;
     }
 
-    public Expression optimizer(Optimizer opt, StaticContext env, ItemType contextItemType) throws XPathException {
-        Expression exp = super.optimize(opt, env, contextItemType);
+    public Expression optimize(ExpressionVisitor visitor, ItemType contextItemType) throws XPathException {
+        Expression exp = super.optimize(visitor, contextItemType);
         if (exp instanceof Unordered) {
-            return ExpressionTool.unsorted(opt, ((Unordered)exp).argument[0], true);
+            return ExpressionTool.unsorted(visitor.getConfiguration().getOptimizer(),
+                    ((Unordered)exp).argument[0], false);
         }
         return exp;
     }
 
     /**
     * preEvaluate: called if the argument is constant
-    */
+     * @param visitor an expression visitor
+     */
 
-    public Expression preEvaluate(StaticContext env) throws XPathException {
+    public Expression preEvaluate(ExpressionVisitor visitor) throws XPathException {
         return argument[0];
     }
 }

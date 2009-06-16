@@ -1,14 +1,14 @@
 package net.sf.saxon.functions;
 import net.sf.saxon.CollectionURIResolver;
-import net.sf.saxon.value.AtomicValue;
-import net.sf.saxon.value.AnyURIValue;
 import net.sf.saxon.expr.*;
 import net.sf.saxon.om.EmptyIterator;
-import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.om.NodeInfo;
+import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.trans.XPathException;
-import net.sf.saxon.trans.DynamicError;
+import net.sf.saxon.value.AnyURIValue;
+
+import javax.xml.transform.SourceLocator;
 
 /**
  * Implement the fn:collection() function. This is responsible for calling the
@@ -20,20 +20,40 @@ public class Collection extends SystemFunction {
 
     private String expressionBaseURI = null;
 
-    public void checkArguments(StaticContext env) throws XPathException {
+    public String getStaticBaseURI() {
+        return expressionBaseURI;
+    }
+
+    public void checkArguments(ExpressionVisitor visitor) throws XPathException {
         if (expressionBaseURI == null) {
-            super.checkArguments(env);
-            expressionBaseURI = env.getBaseURI();
+            super.checkArguments(visitor);
+            expressionBaseURI = visitor.getStaticContext().getBaseURI();
         }
     }
 
     /**
     * preEvaluate: this method suppresses compile-time evaluation by doing nothing
-    */
+     * @param visitor an expression visitor
+     */
 
-    public Expression preEvaluate(StaticContext env) {
+    public Expression preEvaluate(ExpressionVisitor visitor) {
         return this;
     }
+
+    /**
+     * Add a representation of this expression to a PathMap. The PathMap captures a map of the nodes visited
+     * by an expression in a source tree.
+     *
+     * @param pathMap     the PathMap to which the expression should be added
+     * @param pathMapNodeSet
+     * @return the pathMapNode representing the focus established by this expression, in the case where this
+     *         expression is the first operand of a path expression or filter expression
+     */
+
+    public PathMap.PathMapNodeSet addToPathMap(PathMap pathMap, PathMap.PathMapNodeSet pathMapNodeSet) {
+        return addDocToPathMap(pathMap, pathMapNodeSet);
+    }
+
 
     /**
      * Iterate over the contents of the collection
@@ -62,6 +82,11 @@ public class Collection extends SystemFunction {
             throw e;
         }
 
+        return getResolverResults(iter, expressionBaseURI, context, this);
+    }
+
+    public static SequenceIterator getResolverResults(
+            SequenceIterator iter, final String baseURI, final XPathContext context, final SourceLocator locator) {
         if (iter == null) {
             return EmptyIterator.getInstance();
         } else {
@@ -69,14 +94,14 @@ public class Collection extends SystemFunction {
                 public Item map(Item item) throws XPathException {
                     if (item instanceof NodeInfo) {
                         return item;
-                    } else if (((AtomicValue)item).getPrimitiveValue() instanceof AnyURIValue) {
+                    } else if (item instanceof AnyURIValue) {
                         return Document.makeDoc(
                                 item.getStringValue(),
-                                expressionBaseURI,
+                                baseURI,
                                 context,
-                                Collection.this);
+                                locator);
                     } else {
-                        throw new DynamicError("Value returned by CollectionURIResolver must be an anyURI or a NodeInfo");
+                        throw new XPathException("Value returned by CollectionURIResolver must be an anyURI or a NodeInfo");
                     }
                 };
             };

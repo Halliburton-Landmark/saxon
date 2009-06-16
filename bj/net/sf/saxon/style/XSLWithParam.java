@@ -1,6 +1,5 @@
 package net.sf.saxon.style;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.ExpressionTool;
 import net.sf.saxon.instruct.Executable;
 import net.sf.saxon.instruct.WithParam;
 import net.sf.saxon.om.Axis;
@@ -35,7 +34,7 @@ public class XSLWithParam extends XSLGeneralVariable {
                 break;
             }
             if (prev instanceof XSLWithParam) {
-                if (this.getVariableFingerprint() == ((XSLWithParam)prev).getVariableFingerprint()) {
+                if (this.getVariableQName().equals(((XSLWithParam)prev).getVariableQName())) {
                     compileError("Duplicate parameter name", "XTSE0670");
                 }
             }
@@ -46,8 +45,9 @@ public class XSLWithParam extends XSLGeneralVariable {
     public Expression compile(Executable exec) throws XPathException {
         WithParam inst = new WithParam();
         inst.adoptChildExpression(select);
+        inst.setParameterId(
+                        getPrincipalStylesheet().allocateUniqueParameterNumber(getVariableQName()));
         initializeInstruction(exec, inst);
-        ExpressionTool.makeParentReferences(inst);
         return inst;
     }
 

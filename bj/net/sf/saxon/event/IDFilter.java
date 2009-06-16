@@ -1,11 +1,11 @@
 package net.sf.saxon.event;
 import net.sf.saxon.om.NamePool;
+import net.sf.saxon.om.StandardNames;
 import net.sf.saxon.sort.IntHashSet;
-import net.sf.saxon.style.StandardNames;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.AtomicType;
+import net.sf.saxon.type.BuiltInAtomicType;
 import net.sf.saxon.type.SchemaType;
-import net.sf.saxon.type.Type;
 
 
 /**
@@ -143,7 +143,7 @@ public class IDFilter extends StartTagBuffer {
             }
             SchemaType type = getConfiguration().getSchemaType(typeCode);
             if (type.isAtomicType()) {
-                if (getConfiguration().getTypeHierarchy().isSubType((AtomicType)type, Type.ID_TYPE)) {
+                if (getConfiguration().getTypeHierarchy().isSubType((AtomicType)type, BuiltInAtomicType.ID)) {
                     return true;
                 } else {
                     nonIDs.add(typeCode);

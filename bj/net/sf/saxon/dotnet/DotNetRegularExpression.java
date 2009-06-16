@@ -1,15 +1,13 @@
 package net.sf.saxon.dotnet;
 
-import cli.System.Text.RegularExpressions.Match;
+import cli.System.ArgumentException;
 import cli.System.Text.RegularExpressions.Regex;
 import cli.System.Text.RegularExpressions.RegexOptions;
-import cli.System.ArgumentException;
 import net.sf.saxon.om.FastStringBuffer;
 import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.regex.RegexIterator;
 import net.sf.saxon.regex.RegexSyntaxException;
 import net.sf.saxon.regex.RegularExpression;
-import net.sf.saxon.trans.DynamicError;
 import net.sf.saxon.trans.XPathException;
 
 /**
@@ -23,27 +21,36 @@ public class DotNetRegularExpression implements RegularExpression {
     /**
      * Create (compile) a regular expression
      * @param regex the source text of the regular expression, in XML Schema or XPath syntax
-     * @param isXPath set to true if this is an XPath regular expression, false if it is XML Schema
+     * @param xmlVersion indicates whether XML 1.0 or XML 1.1 is in use
+     * @param syntax indicates whether this is an XPath regular expression, an XML Schema regular expression,
+     * or a regex in .NET native regex syntax
      * @param flags the flags argument as supplied to functions such as fn:matches(), in string form
      * @throws net.sf.saxon.trans.XPathException if the syntax of the regular expression or flags is incorrect
      */
 
-    public DotNetRegularExpression(CharSequence regex, boolean isXPath, CharSequence flags)
+    public DotNetRegularExpression(CharSequence regex, int xmlVersion, int syntax, CharSequence flags)
             throws XPathException {
         String translated = "";
         try {
-            DotNetRegexTranslator translator = new DotNetRegexTranslator();
-            translated = translator.translate(regex, isXPath, isIgnoreWhitespace(flags), isCaseBlind(flags));
-            groupCount = translator.getNumberOfCapturedGroups();
-            pattern = new Regex(translated, setFlags(flags));
+            if (syntax == NATIVE_SYNTAX) {
+                groupCount = 9;
+                pattern = new Regex(regex.toString(), setFlags(flags));
+            } else {
+                DotNetRegexTranslator translator = new DotNetRegexTranslator();
+                translated = translator.translate(
+                        regex, xmlVersion, syntax==XPATH_SYNTAX, isIgnoreWhitespace(flags), isCaseBlind(flags));
+                groupCount = translator.getNumberOfCapturedGroups();
+                pattern = new Regex(translated, setFlags(flags));
+            }
+            //noinspection ConstantIfStatement
             if (false) {
                 // to keep the compiler happy
                 throw new ArgumentException();
             }
         } catch (RegexSyntaxException e) {
-            throw new DynamicError(e.getMessage());
+            throw new XPathException(e.getMessage());
         } catch (ArgumentException e) {
-            throw new DynamicError("Error in translated regular expression. Input regex = " +
+            throw new XPathException("Error in translated regular expression. Input regex = " +
                     FastStringBuffer.diagnosticPrint(regex) + ". Translated regex = " + 
                     FastStringBuffer.diagnosticPrint(translated) + ". Message = " + e.getMessage());
         }
@@ -72,15 +79,17 @@ public class DotNetRegularExpression implements RegularExpression {
     }
 
     /**
-     * Determine whether the regular expression matches a given string
+     * Determine whether the regular expression matches (the whole of) a given string
      *
      * @param input the string to match
-     * @return true if the string matches, false otherwise
+     * @return true if the regular expression matches the whole input string, false otherwise
      */
 
     public boolean matches(CharSequence input) {
-        Match m = pattern.Match(input.toString());
-        return (m.get_Success() && m.get_Length() == input.length());
+        // We rely on the fact that this method is only used for the XML Schema pattern facet, and
+        // the regular expressions are preprocessed in that case to add implicit anchoring. The method
+        // is also used to test if the pattern matches an empty string, which is OK.
+        return pattern.IsMatch(input.toString());
     }
 
     /**
@@ -172,30 +181,30 @@ public class DotNetRegularExpression implements RegularExpression {
      * Set the Java flags from the supplied XPath flags.
      * @param inFlags the flags as a string, e.g. "im"
      * @return the flags as a RegexOptions FlagsAttribute
-     * @throws net.sf.saxon.trans.DynamicError if the supplied value is invalid
+     * @throws XPathException if the supplied value is invalid
      */
 
-    public static RegexOptions setFlags(CharSequence inFlags) throws DynamicError {
+    public static RegexOptions setFlags(CharSequence inFlags) throws XPathException {
         int flags = 0;
         for (int i=0; i<inFlags.length(); i++) {
             char c = inFlags.charAt(i);
             switch (c) {
-                case 'm':
-                    flags |= RegexOptions.Multiline;
-                    break;
-                case 'i':
-                   // flags |= RegexOptions.IgnoreCase;
-                    break;
-                case 's':
-                    flags |= RegexOptions.Singleline;
-                    break;
-                case 'x':
-                    //flags |= RegexOptions.IgnorePatternWhitespace;
-                    break;
-                default:
-                    DynamicError err = new DynamicError("Invalid character '" + c + "' in regular expression flags");
-                    err.setErrorCode("FORX0001");
-                    throw err;
+            case'm':
+                flags |= RegexOptions.Multiline;
+                break;
+            case'i':
+                // flags |= RegexOptions.IgnoreCase;
+                break;
+            case's':
+                flags |= RegexOptions.Singleline;
+                break;
+            case'x':
+                //flags |= RegexOptions.IgnorePatternWhitespace;
+                break;
+            default:
+                XPathException err = new XPathException("Invalid character '" + c + "' in regular expression flags");
+                err.setErrorCode("FORX0001");
+                throw err;
             }
         }
         return RegexOptions.wrap(flags);
@@ -211,7 +220,7 @@ public class DotNetRegularExpression implements RegularExpression {
         for (int i=0; i<inFlags.length(); i++) {
             if (inFlags.charAt(i) == 'x') {
                 return true;
-            };
+            }
         }
         return false;
     }
@@ -226,7 +235,7 @@ public class DotNetRegularExpression implements RegularExpression {
         for (int i=0; i<inFlags.length(); i++) {
             if (inFlags.charAt(i) == 'i') {
                 return true;
-            };
+            }
         }
         return false;
     }
@@ -250,7 +259,6 @@ public class DotNetRegularExpression implements RegularExpression {
 // Portions created by (your name) are Copyright (C) (your legal entity). All Rights Reserved.
 //
 // Contributor(s):
-// Portions marked "e.g." are from Edwin Glaser (edwin@pannenleiter.de)
 //
 
 
