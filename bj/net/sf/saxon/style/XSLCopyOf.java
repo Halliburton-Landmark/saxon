@@ -1,13 +1,14 @@
 package net.sf.saxon.style;
 import net.sf.saxon.Configuration;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.ExpressionTool;
 import net.sf.saxon.instruct.CopyOf;
 import net.sf.saxon.instruct.Executable;
 import net.sf.saxon.om.AttributeCollection;
+import net.sf.saxon.om.StandardNames;
 import net.sf.saxon.om.Validation;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.SchemaType;
+import net.sf.saxon.value.Whitespace;
 
 
 /**
@@ -46,13 +47,13 @@ public final class XSLCopyOf extends StyleElement {
 			if (f==StandardNames.SELECT) {
         		selectAtt = atts.getValue(a);
             } else if (f==StandardNames.COPY_NAMESPACES) {
-                copyNamespacesAtt = atts.getValue(a).trim();
+                copyNamespacesAtt = Whitespace.trim(atts.getValue(a));
             } else if (f==StandardNames.VALIDATION) {
-                validationAtt = atts.getValue(a).trim();
+                validationAtt = Whitespace.trim(atts.getValue(a));
             } else if (f==StandardNames.TYPE) {
-                typeAtt = atts.getValue(a).trim();
+                typeAtt = Whitespace.trim(atts.getValue(a));
             } else if (f==StandardNames.SAXON_READ_ONCE) {
-                readOnceAtt = atts.getValue(a).trim();
+                readOnceAtt = Whitespace.trim(atts.getValue(a));
         	} else {
         		checkUnknownAttribute(nc);
         	}
@@ -93,6 +94,7 @@ public final class XSLCopyOf extends StyleElement {
             if (!getConfiguration().isSchemaAware(Configuration.XSLT)) {
                 compileError("The @type attribute is available only with a schema-aware XSLT processor", "XTSE1660");
             }
+            validation = Validation.BY_TYPE;
         }
 
         if (typeAtt != null && validationAtt != null) {
@@ -116,7 +118,6 @@ public final class XSLCopyOf extends StyleElement {
     }
 
     public void validate() throws XPathException {
-        checkWithinTemplate();
         checkEmpty();
         select = typeCheck("select", select);
     }
@@ -126,7 +127,8 @@ public final class XSLCopyOf extends StyleElement {
         if (readOnce) {
             inst.setReadOnce(readOnce);
         }
-        ExpressionTool.makeParentReferences(inst);
+        inst.setCopyLineNumbers(exec.getConfiguration().isLineNumbering());
+        inst.setStaticBaseUri(getBaseURI());
         return inst;
     }
 

@@ -1,10 +1,9 @@
 package net.sf.saxon.expr;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.sort.AtomicComparer;
-import net.sf.saxon.trans.DynamicError;
 import net.sf.saxon.trans.XPathException;
+import net.sf.saxon.type.BuiltInAtomicType;
 import net.sf.saxon.type.ItemType;
-import net.sf.saxon.type.Type;
 import net.sf.saxon.type.TypeHierarchy;
 import net.sf.saxon.value.AtomicValue;
 import net.sf.saxon.value.BooleanValue;
@@ -24,7 +23,7 @@ public class SingletonComparison extends BinaryExpression implements ComparisonE
         super(p1, operator, p2);
     }
 
-    public void setComparator(AtomicComparer comp, XPathContext context) {
+    public void setAtomicComparer(AtomicComparer comp) {
         comparer = comp;
     }
 
@@ -57,11 +56,24 @@ public class SingletonComparison extends BinaryExpression implements ComparisonE
     /**
     * Determine the data type of the expression
     * @return Type.BOOLEAN
-     * @param th
+     * @param th the type hierarchy cache
      */
 
     public ItemType getItemType(TypeHierarchy th) {
-        return Type.BOOLEAN_TYPE;
+        return BuiltInAtomicType.BOOLEAN;
+    }
+
+
+    /**
+     * Copy an expression. This makes a deep copy.
+     *
+     * @return the copy of the original expression
+     */
+
+    public Expression copy() {
+        SingletonComparison sc = new SingletonComparison(operand0.copy(), operator, operand1.copy());
+        sc.comparer = comparer;
+        return sc;
     }
 
     /**
@@ -88,14 +100,10 @@ public class SingletonComparison extends BinaryExpression implements ComparisonE
 
         try {
             return GeneralComparison.compare(v1, operator, v2, comparer, context);
-        } catch (DynamicError e) {
+        } catch (XPathException e) {
             // re-throw the exception with location information added
-            if (e.getXPathContext() == null) {
-                e.setXPathContext(context);
-            }
-            if (e.getLocator() == null) {
-                e.setLocator(this);
-            }
+            e.maybeSetLocation(this);
+            e.maybeSetContext(context);
             throw e;
         }
     }

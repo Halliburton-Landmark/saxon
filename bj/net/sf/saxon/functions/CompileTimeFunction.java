@@ -1,6 +1,6 @@
 package net.sf.saxon.functions;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.StaticContext;
+import net.sf.saxon.expr.ExpressionVisitor;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.om.SequenceIterator;
@@ -17,9 +17,10 @@ public abstract class CompileTimeFunction extends SystemFunction {
     * preEvaluate: this method suppresses compile-time evaluation by doing nothing.
      * (this is because the default implementation of preEvaluate() calls evaluate() which
      * is not available for these functions)
-    */
+     * @param visitor an expression visitor
+     */
 
-    public Expression preEvaluate(StaticContext env) throws XPathException {
+    public Expression preEvaluate(ExpressionVisitor visitor) throws XPathException {
         return this;
     }
 
@@ -40,7 +41,7 @@ public abstract class CompileTimeFunction extends SystemFunction {
     }
 
     private String getName(XPathContext c) {
-        return getDisplayName(c.getNamePool());
+        return getDisplayName();
     }
 
 }

@@ -1,14 +1,11 @@
 package net.sf.saxon.instruct;
 
 import net.sf.saxon.expr.*;
-import net.sf.saxon.om.NamePool;
 import net.sf.saxon.pattern.NodeKindTest;
+import net.sf.saxon.trace.ExpressionPresenter;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.ItemType;
 import net.sf.saxon.type.TypeHierarchy;
-import net.sf.saxon.Configuration;
-
-import java.io.PrintStream;
 
 /**
  * This instruction corresponds to a use-attribute-sets attribute on a literal result element, xsl:element,
@@ -17,6 +14,11 @@ import java.io.PrintStream;
 public class UseAttributeSets extends Instruction {
 
     private AttributeSet[] attributeSets;
+
+    /**
+     * Create a use-attribute-sets expression
+     * @param sets the set of attribute sets to be expanded
+     */
 
     public UseAttributeSets(AttributeSet[] sets) {
         attributeSets = sets;
@@ -30,9 +32,10 @@ public class UseAttributeSets extends Instruction {
      * @throws net.sf.saxon.trans.XPathException
      *          if an error is discovered during expression
      *          rewriting
+     * @param visitor an expression visitor
      */
 
-    public Expression simplify(StaticContext env) throws XPathException {
+    public Expression simplify(ExpressionVisitor visitor) throws XPathException {
         return this;
     }
 
@@ -42,20 +45,29 @@ public class UseAttributeSets extends Instruction {
      * <p>This method is called after all references to functions and variables have been resolved
      * to the declaration of the function or variable, and after all type checking has been done.</p>
      *
-     * @param opt             the optimizer in use. This provides access to supporting functions; it also allows
-     *                        different optimization strategies to be used in different circumstances.
-     * @param env             the static context of the expression
+     * @param visitor an expression visitor
      * @param contextItemType the static type of "." at the point where this expression is invoked.
      *                        The parameter is set to null if it is known statically that the context item will be undefined.
      *                        If the type of the context item is not known statically, the argument is set to
      *                        {@link net.sf.saxon.type.Type#ITEM_TYPE}
      * @return the original expression, rewritten if appropriate to optimize execution
-     * @throws net.sf.saxon.trans.StaticError if an error is discovered during this phase
+     * @throws XPathException if an error is discovered during this phase
      *                                        (typically a type error)
      */
 
-    public Expression optimize(Optimizer opt, StaticContext env, ItemType contextItemType) throws XPathException {
+    public Expression optimize(ExpressionVisitor visitor, ItemType contextItemType) throws XPathException {
         return this;
+    }
+
+
+    /**
+     * Copy an expression. This makes a deep copy.
+     *
+     * @return the copy of the original expression
+     */
+
+    public Expression copy() {
+        throw new UnsupportedOperationException("copy");
     }
 
     /**
@@ -70,7 +82,7 @@ public class UseAttributeSets extends Instruction {
      * to the declaration of the function or variable. However, the types of such functions and
      * variables may not be accurately known if they have not been explicitly declared.</p>
      *
-     * @param env             the static context of the expression
+     * @param visitor an expression visitor
      * @param contextItemType the static type of "." at the point where this expression is invoked.
      *                        The parameter is set to null if it is known statically that the context item will be undefined.
      *                        If the type of the context item is not known statically, the argument is set to
@@ -78,11 +90,11 @@ public class UseAttributeSets extends Instruction {
      * @return the original expression, rewritten to perform necessary
      *         run-time type checks, and to perform other type-related
      *         optimizations
-     * @throws net.sf.saxon.trans.StaticError if an error is discovered during this phase
+     * @throws XPathException if an error is discovered during this phase
      *                                        (typically a type error)
      */
 
-    public Expression typeCheck(StaticContext env, ItemType contextItemType) throws XPathException {
+    public Expression typeCheck(ExpressionVisitor visitor, ItemType contextItemType) throws XPathException {
         return this;
     }
 
@@ -90,11 +102,31 @@ public class UseAttributeSets extends Instruction {
      * Get the item type of the items returned by evaluating this instruction
      *
      * @return the static item type of the instruction
-     * @param th
+     * @param th the type hierarchy cache
      */
 
     public ItemType getItemType(TypeHierarchy th) {
         return NodeKindTest.ATTRIBUTE;
+    }
+
+
+    /**
+     * Determine the intrinsic dependencies of an expression, that is, those which are not derived
+     * from the dependencies of its subexpressions. For example, position() has an intrinsic dependency
+     * on the context position, while (position()+1) does not. The default implementation
+     * of the method returns 0, indicating "no dependencies".
+     *
+     * @return a set of bit-significant flags identifying the "intrinsic"
+     *         dependencies. The flags are documented in class net.sf.saxon.value.StaticProperty
+     */
+
+    public int getIntrinsicDependencies() {
+        int d = 0;
+        for (int i=0; i<attributeSets.length; i++) {
+            AttributeSet as = attributeSets[i];
+            d |= as.getFocusDependencies();
+        }
+        return d;
     }
 
     /**
@@ -115,16 +147,13 @@ public class UseAttributeSets extends Instruction {
     }
 
     /**
-     * Diagnostic print of expression structure. The expression is written to the System.err
-     * output stream
-     *
-     * @param level indentation level for this expression
-     @param out   Output destination
-     @param config
+     * Diagnostic print of expression structure. The abstract expression tree
+     * is written to the supplied output destination.
      */
 
-    public void display(int level, PrintStream out, Configuration config) {
-        out.println(ExpressionTool.indent(level) + "use attribute sets");
+    public void explain(ExpressionPresenter out) {
+        out.startElement("useAttributeSets");
+        out.endElement();
     }
 }
 

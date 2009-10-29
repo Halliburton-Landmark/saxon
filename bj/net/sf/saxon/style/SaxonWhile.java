@@ -1,10 +1,11 @@
 package net.sf.saxon.style;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.ExpressionTool;
+import net.sf.saxon.expr.Literal;
 import net.sf.saxon.instruct.Executable;
 import net.sf.saxon.instruct.While;
 import net.sf.saxon.om.AttributeCollection;
 import net.sf.saxon.om.Axis;
+import net.sf.saxon.om.StandardNames;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.EmptySequence;
 
@@ -61,17 +62,16 @@ public class SaxonWhile extends StyleElement {
     }
 
     public void validate() throws XPathException {
-        checkWithinTemplate();
+        //checkWithinTemplate();
         test = typeCheck("test", test);
     }
 
     public Expression compile(Executable exec) throws XPathException {
         Expression action = compileSequenceConstructor(exec, iterateAxis(Axis.CHILD), true);
         if (action == null) {
-            action = EmptySequence.getInstance();
+            action = Literal.makeEmptySequence();
         }
         While w = new While(test, action);
-        ExpressionTool.makeParentReferences(w);
         return w;
     }
 

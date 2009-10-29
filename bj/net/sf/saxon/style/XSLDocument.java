@@ -1,15 +1,16 @@
 package net.sf.saxon.style;
 import net.sf.saxon.Configuration;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.ExpressionTool;
+import net.sf.saxon.expr.Literal;
 import net.sf.saxon.instruct.DocumentInstr;
 import net.sf.saxon.instruct.Executable;
 import net.sf.saxon.om.AttributeCollection;
 import net.sf.saxon.om.Axis;
+import net.sf.saxon.om.StandardNames;
 import net.sf.saxon.om.Validation;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.SchemaType;
-import net.sf.saxon.value.EmptySequence;
+import net.sf.saxon.value.Whitespace;
 
 /**
 * An xsl:document instruction in the stylesheet. <BR>
@@ -49,10 +50,10 @@ public class XSLDocument extends StyleElement {
 		for (int a=0; a<atts.getLength(); a++) {
 			int nc = atts.getNameCode(a);
 			String f = getNamePool().getClarkName(nc);
-            if (f==StandardNames.VALIDATION) {
-                validationAtt = atts.getValue(a).trim();
-            } else if (f==StandardNames.TYPE) {
-                typeAtt = atts.getValue(a).trim();
+            if (f.equals(StandardNames.VALIDATION)) {
+                validationAtt = Whitespace.trim(atts.getValue(a));
+            } else if (f.equals(StandardNames.TYPE)) {
+                typeAtt = Whitespace.trim(atts.getValue(a));
         	} else {
         		checkUnknownAttribute(nc);
         	}
@@ -74,6 +75,7 @@ public class XSLDocument extends StyleElement {
                 compileError("The @type attribute is available only with a schema-aware XSLT processor", "XTSE1660");
             }
             schemaType = getSchemaType(typeAtt);
+            validationAction = Validation.BY_TYPE;
         }
 
         if (typeAtt != null && validationAtt != null) {
@@ -82,20 +84,19 @@ public class XSLDocument extends StyleElement {
     }
 
     public void validate() throws XPathException {
-        checkWithinTemplate();
+        //
     }
 
     public Expression compile(Executable exec) throws XPathException {
 
         DocumentInstr inst = new DocumentInstr(false, null, getBaseURI());
-        inst.setValidationAction(validationAction);
+        inst.setValidationMode(validationAction);
         inst.setSchemaType(schemaType);
         Expression b = compileSequenceConstructor(exec, iterateAxis(Axis.CHILD), true);
         if (b == null) {
-            b = EmptySequence.getInstance();
+            b = Literal.makeEmptySequence();
         }
         inst.setContentExpression(b);
-        ExpressionTool.makeParentReferences(inst);
         return inst;
     }
 
@@ -116,5 +117,4 @@ public class XSLDocument extends StyleElement {
 //
 // Portions created by (your name) are Copyright (C) (your legal entity). All Rights Reserved.
 //
-// Additional Contributor(s): Brett Knights [brett@knightsofthenet.com]
 //

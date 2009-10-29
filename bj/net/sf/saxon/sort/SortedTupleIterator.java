@@ -1,31 +1,38 @@
 package net.sf.saxon.sort;
 
+import net.sf.saxon.Configuration;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.om.SequenceIterator;
+import net.sf.saxon.om.ValueRepresentation;
 import net.sf.saxon.trans.XPathException;
+import net.sf.saxon.value.Closure;
 import net.sf.saxon.value.EmptySequence;
 import net.sf.saxon.value.ObjectValue;
-import net.sf.saxon.value.Value;
-import net.sf.saxon.Configuration;
-
-import java.util.Comparator;
 
 /**
  * A SortedTupleIterator is a modified SortedIterator. Whereas the sorted iterator
  * used by XSLT computes the sort key of each item in a sequence, using that item
  * as the context item, the SortedTupleIterator used by XQuery precomputes the sort
  * keys from scratch; they do not need to be a function of the item being sorted.
+ *
+ * <p>The items returned by the SortedTupleIterator are instance of ObjectValue,
+ * which encapsulate a Value representing the contents of the tuple.</p>
  */
 
-class SortedTupleIterator extends SortedIterator {
+public class SortedTupleIterator extends SortedIterator {
 
-    // Note, the sort key expression within the SortKeyDefinition is not used
-    // in this subclass.
+    /**
+     * Create a sorted tuple iterator
+     * @param context the dynamic context
+     * @param base the base iterator, which returns the unsorted tuples. Each tuple is represented
+     * by an ObjectValue which wraps an array of Value objects. The first Value object represents
+     * the tuple itself. Subsequent Value objects represent the sort key values, in order.
+     * @param comparators the comparators used for comparing sort keys
+     */
 
     public SortedTupleIterator(XPathContext context, SequenceIterator base,
-                               SortKeyDefinition[] sortKeys,
-                               Comparator[] comparators) {
-        super(context, base, sortKeys, comparators);
+                               AtomicComparer[] comparators) {
+        super(context, base, null, comparators);
         setHostLanguage(Configuration.XQUERY);
     }
 
@@ -46,7 +53,7 @@ class SortedTupleIterator extends SortedIterator {
             if (tupleObject == null) {
                 break;
             }
-            Value[] tuple = (Value[])tupleObject.getObject();
+            ValueRepresentation[] tuple = (ValueRepresentation[])tupleObject.getObject();
             if (count==allocated) {
                 allocated *= 2;
                 Object[] nk2 = new Object[allocated * recordSize];
@@ -59,15 +66,18 @@ class SortedTupleIterator extends SortedIterator {
                 // In general it is actually a sequence, so we wrap it in an ObjectValue
                 // It subsequently gets unwrapped by the MappingFunction applied to the
                 // output of the SortedTupleIterator.
-            for (int n=1; n<=sortkeys.length; n++) {
-                Value v = tuple[n].reduce();
+            for (int n=1; n<=comparators.length; n++) {
+                ValueRepresentation v = tuple[n];
+                if (v instanceof Closure) {
+                    v = ((Closure)v).reduce();
+                }
                 if (v instanceof EmptySequence) {
                     nodeKeys[k+n] = null;
                 } else {
                     nodeKeys[k+n] = v;
                 }
             }
-            nodeKeys[k+sortkeys.length+1] = new Integer(count);
+            nodeKeys[k+comparators.length+1] = new Integer(count);
             count++;
         }
     }

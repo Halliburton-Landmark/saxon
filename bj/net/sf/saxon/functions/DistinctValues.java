@@ -1,15 +1,15 @@
 package net.sf.saxon.functions;
-import net.sf.saxon.expr.StaticContext;
+import net.sf.saxon.expr.ExpressionVisitor;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.sort.AtomicComparer;
 import net.sf.saxon.sort.AtomicSortComparer;
 import net.sf.saxon.sort.ComparisonKey;
+import net.sf.saxon.sort.StringCollator;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.AtomicValue;
 
-import java.util.Comparator;
 import java.util.HashSet;
 
 /**
@@ -18,15 +18,25 @@ import java.util.HashSet;
 
 public class DistinctValues extends CollatingFunction {
 
-    private transient AtomicComparer sortComparer;
+    private transient AtomicComparer atomicComparer;
 
-    public void checkArguments(StaticContext env) throws XPathException {
-        super.checkArguments(env);
-        if (collation != null) {
-            int type = argument[0].getItemType(env.getConfiguration().getTypeHierarchy()).getPrimitiveType();
-            sortComparer = AtomicSortComparer.makeSortComparer(
-                    collation, type, env.makeEarlyEvaluationContext());
+    public void checkArguments(ExpressionVisitor visitor) throws XPathException {
+        super.checkArguments(visitor);
+        if (stringCollator != null) {
+            int type = argument[0].getItemType(visitor.getConfiguration().getTypeHierarchy()).getPrimitiveType();
+            atomicComparer = AtomicSortComparer.makeSortComparer(
+                    stringCollator, type, visitor.getStaticContext().makeEarlyEvaluationContext());
         }
+    }
+
+    /**
+     * Get the AtomicComparer allocated at compile time.
+     * @return the AtomicComparer if one has been allocated at compile time; return null
+     * if the collation is not known until run-time
+     */
+
+    public AtomicComparer getAtomicComparer() {
+        return atomicComparer;
     }
 
     /**
@@ -34,25 +44,27 @@ public class DistinctValues extends CollatingFunction {
     */
 
     public SequenceIterator iterate(XPathContext context) throws XPathException {
-        AtomicComparer comp = sortComparer;
+        AtomicComparer comp = atomicComparer;
         if (comp == null) {
             int type = argument[0].getItemType(context.getConfiguration().getTypeHierarchy()).getPrimitiveType();
-            comp = getAtomicSortComparer(type, context);
+            comp = makeAtomicSortComparer(type, context);
+        } else {
+            comp = comp.provideContext(context);
         }
         SequenceIterator iter = argument[0].iterate(context);
         return new DistinctIterator(iter, comp);
     }
 
     /**
-    * Get a SortComparer that can be used to compare values
-    * @param type the static item type of the first argument
-    * @param context The dynamic evaluation context.
+     * Get a SortComparer that can be used to compare values
+     * @param type the fingerprint of the static item type of the first argument after atomization
+     * @param context The dynamic evaluation context.
+     * @return the comparer
     */
 
-    private AtomicComparer getAtomicSortComparer(int type, XPathContext context) throws XPathException {
-        final Comparator collator = getCollator(1, context);
-        AtomicComparer asc = AtomicSortComparer.makeSortComparer(collator, type, context);
-        return asc;
+    private AtomicComparer makeAtomicSortComparer(int type, XPathContext context) throws XPathException {
+        final StringCollator collator = getCollator(1, context);
+        return AtomicSortComparer.makeSortComparer(collator, type, context);
     }
 
     /**
@@ -98,7 +110,7 @@ public class DistinctValues extends CollatingFunction {
                 }
                 ComparisonKey key = comparer.getComparisonKey(nextBase);
                 if (lookup.contains(key)) {
-                    continue;
+                    //continue;
                 } else {
                     lookup.add(key);
                     current = nextBase;
@@ -133,6 +145,10 @@ public class DistinctValues extends CollatingFunction {
 
         public int position() {
             return position;
+        }
+
+        public void close() {
+            base.close();
         }
 
         /**

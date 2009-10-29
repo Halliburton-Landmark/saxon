@@ -2,10 +2,9 @@ package net.sf.saxon.style;
 import net.sf.saxon.expr.Expression;
 import net.sf.saxon.instruct.Executable;
 import net.sf.saxon.om.AttributeCollection;
-import net.sf.saxon.om.XMLChar;
+import net.sf.saxon.om.StandardNames;
 import net.sf.saxon.trans.XPathException;
-
-import javax.xml.transform.TransformerConfigurationException;
+import net.sf.saxon.charcode.UTF16;
 
 
 /**
@@ -36,9 +35,9 @@ public class XSLOutputCharacter extends StyleElement {
                         codepoint = s.charAt(0);
                         break;
                     case 2:
-                        if (XMLChar.isHighSurrogate(s.charAt(0)) &&
-                                XMLChar.isLowSurrogate(s.charAt(1))) {
-                            codepoint = XMLChar.supplemental(s.charAt(0), s.charAt(1));
+                        if (UTF16.isHighSurrogate(s.charAt(0)) &&
+                                UTF16.isLowSurrogate(s.charAt(1))) {
+                            codepoint = UTF16.combinePair(s.charAt(0), s.charAt(1));
                         } else {
                             compileError("character attribute must be a single XML character", "XTSE0020");
                             codepoint = 256; // for error recovery

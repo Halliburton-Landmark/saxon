@@ -1,27 +1,28 @@
 package net.sf.saxon.functions;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.StaticContext;
+import net.sf.saxon.expr.ExpressionVisitor;
+import net.sf.saxon.expr.Literal;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.AnyURIValue;
-import net.sf.saxon.value.EmptySequence;
 
 /**
-* This class supports the static-base-uri() function in XPath 2.0
- * (added by the working groups on 24 August 2004)
+ * This class supports the static-base-uri() function in XPath 2.0. The expressio
+ * is always evaluated at compile time.
 */
 
 public class StaticBaseURI extends CompileTimeFunction {
 
     /**
     * Compile time evaluation
-    */
+     * @param visitor an expression visitor
+     */
 
-    public Expression preEvaluate(StaticContext env) throws XPathException {
-        String baseURI = env.getBaseURI();
+    public Expression preEvaluate(ExpressionVisitor visitor) throws XPathException {
+        String baseURI = visitor.getStaticContext().getBaseURI();
         if (baseURI == null) {
-            return EmptySequence.getInstance();
+            return Literal.makeEmptySequence();
         }
-        return new AnyURIValue(baseURI);
+        return Literal.makeLiteral(new AnyURIValue(baseURI));
     }
 
 }

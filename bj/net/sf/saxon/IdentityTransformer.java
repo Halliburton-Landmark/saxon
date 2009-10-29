@@ -1,4 +1,5 @@
 package net.sf.saxon;
+
 import net.sf.saxon.event.*;
 import net.sf.saxon.trans.XPathException;
 import org.xml.sax.SAXParseException;

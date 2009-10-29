@@ -1,7 +1,7 @@
 package net.sf.saxon.style;
 import net.sf.saxon.event.Stripper;
-import net.sf.saxon.om.NamePool;
 import net.sf.saxon.om.NodeInfo;
+import net.sf.saxon.om.StandardNames;
 import net.sf.saxon.trans.XPathException;
 
 import java.util.Arrays;
@@ -36,26 +36,7 @@ public class StylesheetStripper extends Stripper
     };
 
     public Stripper getAnother() {
-        StylesheetStripper s = new StylesheetStripper();
-        return s;
-    }
-
-	/**
-	* Set the rules appropriate for whitespace-stripping in a stylesheet
-	*/
-
-	public void setStylesheetRules(NamePool namePool) {
-//	    xsl_text = namePool.getFingerprint(NamespaceConstant.XSLT, "text");
-//	    specials[0] = namePool.getFingerprint(NamespaceConstant.XSLT, "analyze-string");
-//	    specials[1] = namePool.getFingerprint(NamespaceConstant.XSLT, "apply-imports");
-//	    specials[2] = namePool.getFingerprint(NamespaceConstant.XSLT, "apply-templates");
-//	    specials[3] = namePool.getFingerprint(NamespaceConstant.XSLT, "attribute-set");
-//	    specials[4] = namePool.getFingerprint(NamespaceConstant.XSLT, "call-template");
-//	    specials[5] = namePool.getFingerprint(NamespaceConstant.XSLT, "character-map");
-//	    specials[6] = namePool.getFingerprint(NamespaceConstant.XSLT, "choose");
-//	    specials[7] = namePool.getFingerprint(NamespaceConstant.XSLT, "next-match");
-//	    specials[8] = namePool.getFingerprint(NamespaceConstant.XSLT, "stylesheet");
-//	    specials[9] = namePool.getFingerprint(NamespaceConstant.XSLT, "transform");
+        return new StylesheetStripper();
     }
 
     /**
@@ -67,16 +48,12 @@ public class StylesheetStripper extends Stripper
         int fp = nameCode & 0xfffff;
         if (fp == StandardNames.XSL_TEXT) {
             return ALWAYS_PRESERVE;
-        };
+        }
 
         if (Arrays.binarySearch(specials, fp) >= 0) {
             return ALWAYS_STRIP;
         }
-//        for (int i = 0; i < specials.length; i++) {
-//            if (fp == specials[i]) {
-//                return ALWAYS_STRIP;
-//            }
-//        }
+
         return STRIP_DEFAULT;
     }
 
@@ -93,7 +70,7 @@ public class StylesheetStripper extends Stripper
         return isSpacePreserving(element.getNameCode());
     }
 
-}   // end of class StylesheetStripper
+}
 
 //
 // The contents of this file are subject to the Mozilla Public License Version 1.0 (the "License");

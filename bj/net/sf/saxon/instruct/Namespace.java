@@ -1,19 +1,20 @@
 package net.sf.saxon.instruct;
-import net.sf.saxon.Configuration;
 import net.sf.saxon.Controller;
 import net.sf.saxon.event.ReceiverOptions;
 import net.sf.saxon.event.SequenceReceiver;
 import net.sf.saxon.expr.*;
 import net.sf.saxon.om.NamespaceConstant;
+import net.sf.saxon.om.StandardNames;
+import net.sf.saxon.om.Item;
+import net.sf.saxon.om.NodeInfo;
 import net.sf.saxon.pattern.NodeKindTest;
-import net.sf.saxon.style.StandardNames;
-import net.sf.saxon.trans.DynamicError;
+import net.sf.saxon.trace.ExpressionPresenter;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.ItemType;
 import net.sf.saxon.type.TypeHierarchy;
 import net.sf.saxon.value.AnyURIValue;
+import net.sf.saxon.value.Whitespace;
 
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -24,6 +25,11 @@ import java.util.Iterator;
 public class Namespace extends SimpleNodeConstructor {
 
     private Expression name;
+
+    /**
+     * Create an xsl:namespace instruction for dynamic construction of namespace nodes
+     * @param name the expression to evaluate the name of the node (that is, the prefix)
+     */
 
     public Namespace (Expression name) {
         this.name = name;
@@ -38,9 +44,9 @@ public class Namespace extends SimpleNodeConstructor {
         return StandardNames.XSL_NAMESPACE;
     }
 
-    public Expression simplify(StaticContext env) throws XPathException {
-        name = name.simplify(env);
-        return super.simplify(env);
+    public Expression simplify(ExpressionVisitor visitor) throws XPathException {
+        name = visitor.simplify(name);
+        return super.simplify(visitor);
     }
 
     public ItemType getItemType(TypeHierarchy th) {
@@ -59,7 +65,7 @@ public class Namespace extends SimpleNodeConstructor {
         super.promoteInst(offer);
     }
 
-    public void localTypeCheck(StaticContext env, ItemType contextItemType) {}
+    public void localTypeCheck(ExpressionVisitor visitor, ItemType contextItemType) {}
 
     public Iterator iterateSubExpressions() {
         ArrayList list = new ArrayList(6);
@@ -69,6 +75,23 @@ public class Namespace extends SimpleNodeConstructor {
         list.add(name);
         return list.iterator();
     }
+
+    /**
+     * Copy an expression. This makes a deep copy.
+     *
+     * @return the copy of the original expression
+     */
+
+    public Expression copy() {
+        Namespace exp = new Namespace(name.copy());
+        try {
+            exp.setSelect(select.copy(), getExecutable().getConfiguration());
+        } catch (XPathException err) {
+            throw new UnsupportedOperationException(err.getMessage());
+        }
+        return exp;
+    }
+
 
     /**
      * Replace one subexpression by a replacement subexpression
@@ -92,16 +115,16 @@ public class Namespace extends SimpleNodeConstructor {
 
 
     private String evaluatePrefix(XPathContext context) throws XPathException {
-        String prefix = name.evaluateAsString(context).trim();
-        if (!(prefix.equals("") || context.getConfiguration().getNameChecker().isValidNCName(prefix))) {
-            DynamicError err = new DynamicError("Namespace prefix is invalid: " + prefix, this);
+        String prefix = Whitespace.trim(name.evaluateAsString(context));
+        if (!(prefix.length() == 0 || context.getConfiguration().getNameChecker().isValidNCName(prefix))) {
+            XPathException err = new XPathException("Namespace prefix is invalid: " + prefix, this);
             err.setErrorCode("XTDE0920");
             err.setXPathContext(context);
             throw dynamicError(this, err, context);
         }
 
         if (prefix.equals("xmlns")) {
-            DynamicError err = new DynamicError("Namespace prefix 'xmlns' is not allowed", this);
+            XPathException err = new XPathException("Namespace prefix 'xmlns' is not allowed", this);
             err.setErrorCode("XTDE0920");
             err.setXPathContext(context);
             throw dynamicError(this, err, context);
@@ -118,32 +141,7 @@ public class Namespace extends SimpleNodeConstructor {
         Controller controller = context.getController();
         String prefix = evaluatePrefix(context);
         String uri = expandChildren(context).toString();
-
-        // TODO: these checks are not being performed when evaluateItem() is used
-        if (prefix.equals("xml") != uri.equals(NamespaceConstant.XML)) {
-            DynamicError err = new DynamicError("Namespace prefix 'xml' and namespace uri " + NamespaceConstant.XML +
-                    " must only be used together", this);
-            err.setErrorCode("XTDE0925");
-            err.setXPathContext(context);
-            throw dynamicError(this, err, context);
-        }
-
-        if (uri.equals("")) {
-            DynamicError err = new DynamicError("Namespace URI is an empty string", this);
-            err.setErrorCode("XTDE0930");
-            err.setXPathContext(context);
-            //context.getController().recoverableError(err);
-            throw dynamicError(this, err, context);
-        }
-
-        if (!AnyURIValue.isValidURI(uri)) {
-            DynamicError de = new DynamicError(
-                    "The string value of the constructed namespace node must be a valid URI");
-            de.setErrorCode("XTDE0905");
-            de.setXPathContext(context);
-            de.setLocator(this);
-            throw de;
-        }
+        checkPrefixAndUri(prefix, uri, context);
 
         int nscode = controller.getNamePool().allocateNamespaceCode(prefix, uri);
         SequenceReceiver out = context.getReceiver();
@@ -151,14 +149,61 @@ public class Namespace extends SimpleNodeConstructor {
         return null;
     }
 
+
     /**
-     * Display this instruction as an expression, for diagnostics
+     * Evaluate as an expression. We rely on the fact that when these instructions
+     * are generated by XQuery, there will always be a valueExpression to evaluate
+     * the content
      */
 
-    public void display(int level, PrintStream out, Configuration config) {
-        out.println(ExpressionTool.indent(level) + "namespace");
-        name.display(level+1, out, config);
-        super.display(level+1, out, config);
+    public Item evaluateItem(XPathContext context) throws XPathException {
+        NodeInfo node = (NodeInfo)super.evaluateItem(context);
+        String prefix = node.getLocalPart();
+        String uri = node.getStringValue();
+        checkPrefixAndUri(prefix, uri, context);
+        return node;
+    }
+
+    private void checkPrefixAndUri(String prefix, String uri, XPathContext context) throws XPathException {
+        if (prefix.equals("xml") != uri.equals(NamespaceConstant.XML)) {
+            XPathException err = new XPathException("Namespace prefix 'xml' and namespace uri " + NamespaceConstant.XML +
+                    " must only be used together", this);
+            err.setErrorCode("XTDE0925");
+            err.setXPathContext(context);
+            throw dynamicError(this, err, context);
+        }
+
+        if (uri.length() == 0) {
+            XPathException err = new XPathException("Namespace URI is an empty string", this);
+            err.setErrorCode("XTDE0930");
+            err.setXPathContext(context);
+            //context.getController().recoverableError(err);
+            throw dynamicError(this, err, context);
+        }
+
+        if (!AnyURIValue.isValidURI(uri)) {
+            XPathException de = new XPathException("The string value of the constructed namespace node must be a valid URI");
+            de.setErrorCode("XTDE0905");
+            de.setXPathContext(context);
+            de.setLocator(this);
+            throw de;
+        }
+    }
+
+    /**
+     * Diagnostic print of expression structure. The abstract expression tree
+     * is written to the supplied output destination.
+     */
+
+    public void explain(ExpressionPresenter out) {
+        out.startElement("namespace");
+        out.startSubsidiaryElement("name");
+        name.explain(out);
+        out.endSubsidiaryElement();
+        out.startSubsidiaryElement("select");
+        getSelect().explain(out);
+        out.endSubsidiaryElement();
+        out.endElement();
     }
 
 }

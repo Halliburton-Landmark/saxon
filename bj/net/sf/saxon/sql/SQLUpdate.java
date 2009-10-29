@@ -1,18 +1,15 @@
 package net.sf.saxon.sql;
-import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.SimpleExpression;
-import net.sf.saxon.expr.XPathContext;
+import net.sf.saxon.expr.*;
 import net.sf.saxon.instruct.Executable;
-import net.sf.saxon.om.Axis;
-import net.sf.saxon.om.AxisIterator;
-import net.sf.saxon.om.Item;
-import net.sf.saxon.om.NodeInfo;
+import net.sf.saxon.om.*;
 import net.sf.saxon.style.ExtensionInstruction;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.trans.SaxonErrorCode;
 import net.sf.saxon.value.AtomicValue;
 import net.sf.saxon.value.ObjectValue;
 import net.sf.saxon.value.StringValue;
+import net.sf.saxon.value.Whitespace;
+import net.sf.saxon.type.Type;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -46,10 +43,11 @@ public class SQLUpdate extends ExtensionInstruction {
 		if (table==null) {
             reportAbsence("table");
         }
+        table = SQLConnect.quoteSqlName(table);
 
         String dbWhere = getAttributeList().getValue("", "where");
         if (dbWhere == null) {
-            where = StringValue.EMPTY_STRING;
+            where = new StringLiteral(StringValue.EMPTY_STRING);
         } else {
             where = makeAttributeValueTemplate(dbWhere);
         }
@@ -67,13 +65,27 @@ public class SQLUpdate extends ExtensionInstruction {
         super.validate();
         where = typeCheck("where", where);
         connection = typeCheck("connection", connection);
+        AxisIterator kids = iterateAxis(Axis.CHILD);
+        while(true) {
+            NodeInfo curr = (NodeInfo)kids.next();
+            if (curr == null) {
+                break;
+            }
+            if (curr instanceof SQLColumn) {
+                // OK
+            } else if (curr.getNodeKind() == Type.TEXT && Whitespace.isWhite(curr.getStringValueCS())) {
+                // OK
+            } else {
+                compileError("Only sql:column is allowed as a child of sql:update", "XTSE0010");
+            }
+        }
     }
 
     public Expression compile(Executable exec) throws XPathException {
 
         // Collect names of columns to be added
 
-        StringBuffer statement = new StringBuffer(120);
+        FastStringBuffer statement = new FastStringBuffer(120);
         statement.append("UPDATE " + table + " SET ");
 
         AxisIterator kids = iterateAxis(Axis.CHILD);
@@ -145,6 +157,15 @@ public class SQLUpdate extends ExtensionInstruction {
             return "sql:update";
         }
 
+//        public Expression promote(PromotionOffer offer) throws XPathException {
+//            if (offer.action != PromotionOffer.FOCUS_INDEPENDENT && offer.action != PromotionOffer.EXTRACT_GLOBAL_VARIABLES) {
+//                // See comments in corresponding method for SQLInsert
+//                return super.promote(offer);
+//            } else {
+//                return this;
+//            }
+//        }
+
         public Item evaluateItem(XPathContext context) throws XPathException {
 
             // Prepare the SQL statement (only do this once)
@@ -156,10 +177,10 @@ public class SQLUpdate extends ExtensionInstruction {
             Connection connection = (Connection)((ObjectValue)conn).getObject();
             PreparedStatement ps = null;
 
-            String dbWhere = arguments[WHERE].evaluateAsString(context);
+            String dbWhere = arguments[WHERE].evaluateAsString(context).toString();
             String localstmt = statement;
 
-            if (!dbWhere.equals("")) {
+            if (dbWhere.length() != 0) {
             	localstmt += " WHERE " + dbWhere;
             }
 
@@ -170,7 +191,7 @@ public class SQLUpdate extends ExtensionInstruction {
 
                 int i = 1;
                 for (int c=FIRST_COLUMN; c<arguments.length; c++) {
-                    AtomicValue v = (AtomicValue)((SQLColumn.ColumnInstruction)arguments[c]).getSelectValue(context);
+                    AtomicValue v = (AtomicValue)arguments[c].evaluateItem(context);
 
          			// TODO: the values are all strings. There is no way of adding to a numeric column
            		    String val = v.getStringValue();

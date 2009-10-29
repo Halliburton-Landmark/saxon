@@ -1,11 +1,13 @@
 package net.sf.saxon.style;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.ExpressionTool;
+import net.sf.saxon.expr.StringLiteral;
 import net.sf.saxon.instruct.Executable;
 import net.sf.saxon.instruct.Namespace;
-import net.sf.saxon.om.AttributeCollection;
+import net.sf.saxon.om.*;
 import net.sf.saxon.trans.XPathException;
+import net.sf.saxon.type.Type;
 import net.sf.saxon.value.StringValue;
+import net.sf.saxon.value.Whitespace;
 
 /**
 * An xsl:namespace element in the stylesheet. (XSLT 2.0)
@@ -26,9 +28,9 @@ public class XSLNamespace extends XSLStringConstructor {
 			int nc = atts.getNameCode(a);
 			String f = getNamePool().getClarkName(nc);
 			if (f==StandardNames.NAME) {
-        		nameAtt = atts.getValue(a).trim();
+        		nameAtt = Whitespace.trim(atts.getValue(a)) ;
        	    } else if (f==StandardNames.SELECT) {
-        		selectAtt = atts.getValue(a).trim();
+        		selectAtt = Whitespace.trim(atts.getValue(a)) ;
         	} else {
         		checkUnknownAttribute(nc);
         	}
@@ -46,10 +48,43 @@ public class XSLNamespace extends XSLStringConstructor {
     }
 
     public void validate() throws XPathException {
-        checkWithinTemplate();
         name = typeCheck("name", name);
         select = typeCheck("select", select);
-        super.validate();
+        int countChildren = 0;
+        NodeInfo firstChild = null;
+        AxisIterator kids = iterateAxis(Axis.CHILD);
+        while (true) {
+            NodeInfo child = (NodeInfo)kids.next();
+            if (child == null) {
+                break;
+            }
+            if (child instanceof XSLFallback) {
+                continue;
+            }
+            if (select != null) {
+                String errorCode = getErrorCodeForSelectPlusContent();
+                compileError("An " + getDisplayName() + " element with a select attribute must be empty", errorCode);
+            }
+            countChildren++;
+            if (firstChild == null) {
+                firstChild = child;
+            } else {
+                break;
+            }
+        }
+
+        if (select == null) {
+            if (countChildren == 0) {
+                // there are no child nodes and no select attribute
+                select = new StringLiteral(StringValue.EMPTY_STRING);
+            } else if (countChildren == 1) {
+                // there is exactly one child node
+                if (firstChild.getNodeKind() == Type.TEXT) {
+                    // it is a text node: optimize for this case
+                    select = new StringLiteral(firstChild.getStringValueCS());
+                }
+            }
+        }
     }
 
     /**
@@ -64,8 +99,7 @@ public class XSLNamespace extends XSLStringConstructor {
 
     public Expression compile(Executable exec) throws XPathException {
         Namespace inst = new Namespace(name);
-        compileContent(exec, inst, StringValue.SINGLE_SPACE);
-        ExpressionTool.makeParentReferences(inst);
+        compileContent(exec, inst, new StringLiteral(StringValue.SINGLE_SPACE));
         return inst;
     }
 

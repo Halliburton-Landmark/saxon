@@ -6,8 +6,9 @@ import net.sf.saxon.sort.GenericAtomicComparer;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.TypeHierarchy;
 import net.sf.saxon.type.Type;
+import net.sf.saxon.type.BuiltInAtomicType;
 import net.sf.saxon.value.AtomicValue;
-import net.sf.saxon.value.IntegerValue;
+import net.sf.saxon.value.Int64Value;
 
 
 /**
@@ -25,11 +26,14 @@ public class IndexOf extends CollatingFunction {
         GenericAtomicComparer comparer = getAtomicComparer(2, context);
         SequenceIterator seq = argument[0].iterate(context);
         AtomicValue val = (AtomicValue)argument[1].evaluateItem(context);
-        final TypeHierarchy th = context.getConfiguration().getTypeHierarchy();
-        return new IndexIterator(seq, val, th, comparer);
+        return new IndexIterator(seq, val, comparer);
     }
 
-    private class IndexIterator implements SequenceIterator {
+    /**
+     * Iterator to return the index positions of selected items in a sequence
+     */
+
+    public static class IndexIterator implements SequenceIterator {
 
         SequenceIterator base;
         AtomicValue value;
@@ -37,16 +41,21 @@ public class IndexOf extends CollatingFunction {
         int index = 0;
         int position = 0;
         Item current = null;
-        int primitiveTypeRequired;
+        BuiltInAtomicType primitiveTypeRequired;
         TypeHierarchy typeHierarchy;
 
-        public IndexIterator(SequenceIterator base, AtomicValue value, TypeHierarchy th, GenericAtomicComparer comparer)
-        {
+        /**
+         * Get an iterator returning the index positions of selected items in a sequence
+         * @param base The sequence to be searched
+         * @param value The value being sought
+         * @param comparer Comparer used to determine whether values match
+         */
+
+        public IndexIterator(SequenceIterator base, AtomicValue value, GenericAtomicComparer comparer) {
             this.base = base;
             this.value = value;
             this.comparer = comparer;
-            this.typeHierarchy = th;
-            primitiveTypeRequired = value.getPrimitiveValue().getItemType(th).getPrimitiveType();
+            primitiveTypeRequired = value.getPrimitiveType();
         }
 
         public Item next() throws XPathException {
@@ -55,10 +64,10 @@ public class IndexOf extends CollatingFunction {
                 if (i==null) break;
                 index++;
                 if (Type.isComparable(primitiveTypeRequired,
-                            i.getPrimitiveValue().getItemType(typeHierarchy).getPrimitiveType(), false)) {
+                            i.getPrimitiveType(), false)) {
                     try {
                         if (comparer.comparesEqual(i, value)) {
-                            current = new IntegerValue(index);
+                            current = Int64Value.makeIntegerValue(index);
                             position++;
                             return current;
                         }
@@ -81,16 +90,20 @@ public class IndexOf extends CollatingFunction {
             return position;
         }
 
+        public void close() {
+            base.close();
+        }
+
         public SequenceIterator getAnother() throws XPathException {
-            return new IndexIterator(base.getAnother(), value, typeHierarchy, comparer);
+            return new IndexIterator(base.getAnother(), value, comparer);
         }
 
         /**
          * Get properties of this iterator, as a bit-significant integer.
          *
          * @return the properties of this iterator. This will be some combination of
-         *         properties such as {@link GROUNDED}, {@link LAST_POSITION_FINDER},
-         *         and {@link LOOKAHEAD}. It is always
+         *         properties such as {@link SequenceIterator#GROUNDED}, {@link SequenceIterator#LAST_POSITION_FINDER},
+         *         and {@link SequenceIterator#LOOKAHEAD}. It is always
          *         acceptable to return the value zero, indicating that there are no known special properties.
          *         It is acceptable for the properties of the iterator to change depending on its state.
          */

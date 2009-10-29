@@ -7,7 +7,7 @@ package net.sf.saxon.number;
   * @author Michael H. Kay
   */
 
-public class Numberer_de extends Numberer_en {
+public class Numberer_de extends AbstractNumberer {
 
     /**
      * Construct the ordinal suffix for a number, for example "st", "nd", "rd"

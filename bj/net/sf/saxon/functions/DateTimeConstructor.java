@@ -2,8 +2,10 @@ package net.sf.saxon.functions;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.trans.XPathException;
-import net.sf.saxon.trans.DynamicError;
-import net.sf.saxon.value.*;
+import net.sf.saxon.value.AtomicValue;
+import net.sf.saxon.value.DateTimeValue;
+import net.sf.saxon.value.DateValue;
+import net.sf.saxon.value.TimeValue;
 
 
 /**
@@ -17,26 +19,18 @@ public class DateTimeConstructor extends SystemFunction {
     */
 
     public Item evaluateItem(XPathContext context) throws XPathException {
-        DateValue arg0 = (DateValue)((AtomicValue)argument[0].evaluateItem(context)).getPrimitiveValue();
-        TimeValue arg1 = (TimeValue)((AtomicValue)argument[1].evaluateItem(context)).getPrimitiveValue();
+        AtomicValue arg0 = (AtomicValue)argument[0].evaluateItem(context);
+        AtomicValue arg1 = (AtomicValue)argument[1].evaluateItem(context);
         try {
-            return new DateTimeValue(arg0, arg1);
-        } catch (DynamicError e) {
-            if (e.getLocator() == null) {
-                e.setLocator(this);
-            }
-            if (e.getXPathContext() == null) {
-                e.setXPathContext(context);
-            }
+            return DateTimeValue.makeDateTimeValue((DateValue)arg0, (TimeValue)arg1);
+        } catch (XPathException e) {
+            e.maybeSetLocation(this);
+            e.maybeSetContext(context);
             throw e;
         }
     }
 
 }
-
-
-
-
 
 //
 // The contents of this file are subject to the Mozilla Public License Version 1.0 (the "License");

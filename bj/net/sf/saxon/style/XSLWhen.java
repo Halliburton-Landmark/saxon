@@ -2,6 +2,7 @@ package net.sf.saxon.style;
 import net.sf.saxon.expr.Expression;
 import net.sf.saxon.instruct.Executable;
 import net.sf.saxon.om.AttributeCollection;
+import net.sf.saxon.om.StandardNames;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.ItemType;
 
@@ -71,11 +72,9 @@ public class XSLWhen extends StyleElement {
     * Mark tail-recursive calls on stylesheet functions. For most instructions, this does nothing.
     */
 
-    public void markTailCalls() {
+    public boolean markTailCalls() {
         StyleElement last = getLastChildInstruction();
-        if (last != null) {
-            last.markTailCalls();
-        }
+        return last != null && last.markTailCalls();
     }
 
     public Expression compile(Executable exec) throws XPathException {

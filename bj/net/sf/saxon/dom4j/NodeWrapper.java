@@ -5,7 +5,7 @@ import net.sf.saxon.event.Receiver;
 import net.sf.saxon.om.*;
 import net.sf.saxon.pattern.AnyNodeTest;
 import net.sf.saxon.pattern.NodeTest;
-import net.sf.saxon.style.StandardNames;
+import net.sf.saxon.om.StandardNames;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.Type;
 import net.sf.saxon.value.UntypedAtomicValue;
@@ -35,6 +35,7 @@ public class NodeWrapper implements NodeInfo, VirtualNode, SiblingCountingNode {
     protected short nodeKind;
     private NodeWrapper parent;     // null means unknown
     protected DocumentWrapper docWrapper;
+    // Beware: with dom4j, this is an index over the result of content(), which may contain Namespace nodes
     protected int index;            // -1 means unknown
 
     /**
@@ -150,16 +151,17 @@ public class NodeWrapper implements NodeInfo, VirtualNode, SiblingCountingNode {
     */
     public int getTypeAnnotation() {
         if (getNodeKind() == Type.ATTRIBUTE) {
-            return StandardNames.XDT_UNTYPED_ATOMIC;
+            return StandardNames.XS_UNTYPED_ATOMIC;
         }
-        return StandardNames.XDT_UNTYPED;
+        return StandardNames.XS_UNTYPED;
     }
 
     /**
-    * Determine whether this is the same node as another node. <br />
-    * Note: a.isSameNode(b) if and only if generateId(a)==generateId(b)
-    * @return true if this Node object and the supplied Node object represent the
-    * same node in the tree.
+     * Determine whether this is the same node as another node. <br />
+     * Note: a.isSameNode(b) if and only if generateId(a)==generateId(b)
+     * @param other the node to be compared with
+     * @return true if this Node object and the supplied Node object represent the
+     * same node in the tree.
     */
 
     public boolean isSameNode(NodeInfo other) {
@@ -217,6 +219,15 @@ public class NodeWrapper implements NodeInfo, VirtualNode, SiblingCountingNode {
     */
 
     public int getLineNumber() {
+        return -1;
+    }
+
+   /**
+     * Get column number
+     * @return the column number of the node in its original source document; or -1 if not available
+     */
+
+    public int getColumnNumber() {
         return -1;
     }
 
@@ -423,7 +434,6 @@ public class NodeWrapper implements NodeInfo, VirtualNode, SiblingCountingNode {
     /**
      * Get the index position of this node among its siblings (starting from 0)
      */
-
     public int getSiblingPosition() {
         if (index == -1) {
             int ix = 0;
@@ -434,8 +444,27 @@ public class NodeWrapper implements NodeInfo, VirtualNode, SiblingCountingNode {
                 case Type.TEXT:
                 case Type.COMMENT:
                 case Type.PROCESSING_INSTRUCTION:
-                    iter = parent.iterateAxis(Axis.CHILD);
-                    break;
+//                    iter = parent.iterateAxis(Axis.ATTRIBUTE);
+//                    break;
+                    {
+                        final NodeWrapper parent = (NodeWrapper) getParent();
+                        final List children;
+                        if (parent.getNodeKind()==Type.DOCUMENT) {
+                            children = ((Document) parent.node).content();
+                        } else {
+                            // Beware: dom4j content() contains Namespace nodes (which is broken)!
+                            children = ((Element) parent.node).content();
+                        }
+                        for (ListIterator iterator = children.listIterator(); iterator.hasNext();) {
+                            final Object n = iterator.next();
+                            if (n == node) {
+                                index = ix;
+                                return index;
+                            }
+                            ix++;
+                        }
+                        throw new IllegalStateException("DOM4J node not linked to parent node");
+                    }
                 case Type.ATTRIBUTE:
                     iter = parent.iterateAxis(Axis.ATTRIBUTE);
                     break;
@@ -655,6 +684,7 @@ public class NodeWrapper implements NodeInfo, VirtualNode, SiblingCountingNode {
             case Type.DOCUMENT:
                 return true;
             case Type.ELEMENT:
+                // Beware: dom4j content() contains Namespace nodes (which is broken)!
                 List content = ((Element)node).content();
                 for (int i=0; i<content.size(); i++) {
                     if (!(content.get(i) instanceof Namespace)) {
@@ -725,6 +755,36 @@ public class NodeWrapper implements NodeInfo, VirtualNode, SiblingCountingNode {
         }
     }
 
+    /**
+     * Determine whether this node has the is-id property
+     *
+     * @return true if the node is an ID
+     */
+
+    public boolean isId() {
+        return false;
+    }
+
+    /**
+     * Determine whether this node has the is-idref property
+     *
+     * @return true if the node is an IDREF or IDREFS element or attribute
+     */
+
+    public boolean isIdref() {
+        return false;
+    }
+
+    /**
+     * Determine whether the node has the is-nilled property
+     *
+     * @return true if the node has the is-nilled property
+     */
+
+    public boolean isNilled() {
+        return false;
+    }
+
     ///////////////////////////////////////////////////////////////////////////////
     // Axis enumeration classes
     ///////////////////////////////////////////////////////////////////////////////
@@ -773,13 +833,13 @@ public class NodeWrapper implements NodeInfo, VirtualNode, SiblingCountingNode {
                 Namespace ns = elem.getNamespace();
                 String prefix = ns.getPrefix();
                 String uri = ns.getURI();
-                if (!(prefix.equals("") && uri.equals(""))) {
+                if (!(prefix.length() == 0 && uri.length() == 0)) {
                     if (!nslist.containsKey(prefix)) {
                         nslist.put(ns.getPrefix(), ns);
                     }
                 }
                 List addl = elem.additionalNamespaces();
-                if (addl.size() > 0) {
+                if (!addl.isEmpty()) {
                     Iterator itr = addl.iterator();
                     while (itr.hasNext()) {
                         ns = (Namespace) itr.next();
@@ -884,17 +944,18 @@ public class NodeWrapper implements NodeInfo, VirtualNode, SiblingCountingNode {
                 if (children.hasNext()) {
                     Object nextChild = children.next();
                     if (nextChild instanceof DocumentType || nextChild instanceof Namespace) {
+                        ix++; // increment anyway so that makeWrapper() passes the correct index)
                         advance();
                         return;
                     }
                     if (nextChild instanceof Entity) {
                         throw new IllegalStateException("Unexpanded entity in DOM4J tree");
                     } else {
-                        if (isAtomizing()) {
-                            current = new UntypedAtomicValue(getStringValue(node));
-                        } else {
+//                        if (isAtomizing()) {
+//                            current = new UntypedAtomicValue(getStringValue(node));
+//                        } else {
                             current = makeWrapper(nextChild, docWrapper, commonParent, ix++);
-                        }
+//                        }
                     }
                 } else {
                     current = null;
@@ -903,17 +964,18 @@ public class NodeWrapper implements NodeInfo, VirtualNode, SiblingCountingNode {
                 if (children.hasPrevious()) {
                     Object nextChild = children.previous();
                     if (nextChild instanceof DocumentType || nextChild instanceof Namespace) {
+                        ix--; // decrement anyway so that makeWrapper() passes the correct index)
                         advance();
                         return;
                     }
                     if (nextChild instanceof Entity) {
                         throw new IllegalStateException("Unexpanded entity in DOM4J tree");
                     } else {
-                        if (isAtomizing()) {
-                            current = new UntypedAtomicValue(getStringValue(node));
-                        } else {
+//                        if (isAtomizing()) {
+//                            current = new UntypedAtomicValue(getStringValue(node));
+//                        } else {
                             current = makeWrapper(nextChild, docWrapper, commonParent, ix--);
-                        }
+//                        }
                     }
                 } else {
                     current = null;
@@ -946,7 +1008,7 @@ public class NodeWrapper implements NodeInfo, VirtualNode, SiblingCountingNode {
         }
         NodeWrapper ow = (NodeWrapper)other;
         if (node instanceof Namespace) {
-            return this.getLocalPart().equals(ow.getLocalPart()) && this.getParent().isSameNodeInfo(ow.getParent());
+            return getLocalPart().equals(ow.getLocalPart()) && getParent().isSameNodeInfo(ow.getParent());
         }
         return node.equals(ow.node);
     }
@@ -975,14 +1037,14 @@ public class NodeWrapper implements NodeInfo, VirtualNode, SiblingCountingNode {
             final Element elem = (Element) node;
             final List namespaces = elem.declaredNamespaces();
 
-            if (namespaces == null || namespaces.size() == 0) {
+            if (namespaces == null || namespaces.isEmpty()) {
                 return EMPTY_NAMESPACE_LIST;
             }
             final int count = namespaces.size();
             if (count == 0) {
                 return EMPTY_NAMESPACE_LIST;
             } else {
-                int[] result = (count > buffer.length ? new int[count] : buffer);
+                int[] result = (buffer == null || count > buffer.length ? new int[count] : buffer);
                 NamePool pool = getNamePool();
                 int n = 0;
                 for (Iterator i = namespaces.iterator(); i.hasNext();) {
@@ -1002,15 +1064,6 @@ public class NodeWrapper implements NodeInfo, VirtualNode, SiblingCountingNode {
         }
     }
 
-    /**
-    * Output all namespace nodes associated with this element. Does nothing if
-    * the node is not an element.
-    * @param out The relevant outputter
-     * @param includeAncestors True if namespaces declared on ancestor elements must
-     */
-    public void sendNamespaceDeclarations(Receiver out, boolean includeAncestors) throws XPathException {
-        Navigator.sendNamespaceDeclarations(this, out, includeAncestors);
-    }
 }
 
 //
@@ -1024,10 +1077,10 @@ public class NodeWrapper implements NodeInfo, VirtualNode, SiblingCountingNode {
 //
 // The Original Code is: all this file.
 //
-// The Initial Developer of the Original Code is
-// Michael Kay (michael.h.kay@ntlworld.com).
+// The Initial Developer of the Original Code is Michael Kay.
 //
 // Portions created by (your name) are Copyright (C) (your legal entity). All Rights Reserved.
 //
 // Contributor(s): none.
 //
+

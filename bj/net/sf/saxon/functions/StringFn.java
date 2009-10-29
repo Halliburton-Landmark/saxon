@@ -1,7 +1,8 @@
 package net.sf.saxon.functions;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.StaticContext;
+import net.sf.saxon.expr.ExpressionVisitor;
 import net.sf.saxon.expr.XPathContext;
+import net.sf.saxon.expr.PathMap;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.StringValue;
@@ -15,11 +16,34 @@ public class StringFn extends SystemFunction {
     /**
     * Simplify and validate.
     * This is a pure function so it can be simplified in advance if the arguments are known
-    */
+     * @param visitor an expression visitor
+     */
 
-     public Expression simplify(StaticContext env) throws XPathException {
+     public Expression simplify(ExpressionVisitor visitor) throws XPathException {
         useContextItemAsDefault();
-        return simplifyArguments(env);
+        argument[0].setFlattened(true);
+        return simplifyArguments(visitor);
+    }
+
+
+    /**
+     * Add a representation of a doc() call or similar function to a PathMap.
+     * This is a convenience method called by the addToPathMap() methods for doc(), document(), collection()
+     * and similar functions. These all create a new root expression in the path map.
+     *
+     * @param pathMap      the PathMap to which the expression should be added
+     * @param pathMapNodes the node in the PathMap representing the focus at the point where this expression
+     *                     is called. Set to null if this expression appears at the top level.
+     * @return the pathMapNode representing the focus established by this expression, in the case where this
+     *         expression is the first operand of a path expression or filter expression
+     */
+
+    public PathMap.PathMapNodeSet addDocToPathMap(PathMap pathMap, PathMap.PathMapNodeSet pathMapNodes) {
+        PathMap.PathMapNodeSet result = argument[0].addToPathMap(pathMap, pathMapNodes);
+        if (result != null) {
+            result.setAtomized();
+        }
+        return null;
     }
 
     /**

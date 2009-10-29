@@ -1,9 +1,8 @@
 package net.sf.saxon.functions;
-import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.StaticContext;
-import net.sf.saxon.expr.StaticProperty;
-import net.sf.saxon.expr.XPathContext;
+import net.sf.saxon.expr.*;
 import net.sf.saxon.om.Item;
+import net.sf.saxon.om.StructuredQName;
+import net.sf.saxon.om.NamespaceConstant;
 import net.sf.saxon.trans.XPathException;
 
 /**
@@ -11,6 +10,13 @@ import net.sf.saxon.trans.XPathException;
  */
 
 public class Current extends SystemFunction implements XSLTFunction {
+    
+    /**
+     * The name of the Current function
+     */ 
+    
+    public static StructuredQName FN_CURRENT =
+            new StructuredQName("", NamespaceConstant.FN, "current");
 
     /**
     * Get the static properties of this expression (other than its type). The result is
@@ -28,9 +34,10 @@ public class Current extends SystemFunction implements XSLTFunction {
     /**
     * preEvaluate: this method suppresses compile-time evaluation by doing nothing
     * (because the value of the expression depends on the runtime context)
-    */
+     * @param visitor an expression visitor
+     */
 
-    public Expression preEvaluate(StaticContext env) {
+    public Expression preEvaluate(ExpressionVisitor visitor) {
         return this;
     }
 

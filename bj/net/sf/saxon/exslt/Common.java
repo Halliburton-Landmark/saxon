@@ -1,10 +1,11 @@
 package net.sf.saxon.exslt;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.pattern.AnyNodeTest;
+import net.sf.saxon.type.BuiltInAtomicType;
 import net.sf.saxon.type.ItemType;
-import net.sf.saxon.type.Type;
 import net.sf.saxon.type.TypeHierarchy;
 import net.sf.saxon.value.Value;
+import net.sf.saxon.om.ValueRepresentation;
 
 /**
 * This class implements extension functions in the
@@ -26,7 +27,7 @@ public abstract class Common  {
     * it is implemented as a no-op.
     */
 
-    public static Value nodeSet(Value frag) {
+    public static ValueRepresentation nodeSet(ValueRepresentation frag) {
         return frag;
     }
 
@@ -35,16 +36,16 @@ public abstract class Common  {
     * "external". (EXSLT spec not yet modified to cater for XPath 2.0 data model)
     */
 
-    public static String objectType(XPathContext context, Value value) {
+    public static String objectType(XPathContext context, ValueRepresentation value) {
         final TypeHierarchy th = context.getConfiguration().getTypeHierarchy();
-        ItemType type = value.getItemType(th);
+        ItemType type = Value.asValue(value).getItemType(th);
         if (th.isSubType(type, AnyNodeTest.getInstance())) {
             return "node-set";
-        } else if (th.isSubType(type, Type.STRING_TYPE)) {
+        } else if (th.isSubType(type, BuiltInAtomicType.STRING)) {
             return "string";
-        } else if (th.isSubType(type, Type.NUMBER_TYPE)) {
+        } else if (th.isSubType(type, BuiltInAtomicType.NUMERIC)) {
             return "number";
-        } else if (th.isSubType(type, Type.BOOLEAN_TYPE)) {
+        } else if (th.isSubType(type, BuiltInAtomicType.BOOLEAN)) {
             return "boolean";
         } else {
             return type.toString(context.getNamePool());

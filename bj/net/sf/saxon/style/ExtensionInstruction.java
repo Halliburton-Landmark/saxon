@@ -1,8 +1,5 @@
 package net.sf.saxon.style;
-import net.sf.saxon.style.StyleElement;
 import net.sf.saxon.trans.XPathException;
-
-import javax.xml.transform.TransformerConfigurationException;
 
 /**
 * Abstract class representing an extension instruction
@@ -29,7 +26,7 @@ public abstract class ExtensionInstruction extends StyleElement {
     }
 
     public void validate() throws XPathException {
-        checkWithinTemplate();
+        //
     }
 
 }

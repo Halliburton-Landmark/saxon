@@ -4,10 +4,7 @@ import cli.System.Text.RegularExpressions.Group;
 import cli.System.Text.RegularExpressions.GroupCollection;
 import cli.System.Text.RegularExpressions.Match;
 import cli.System.Text.RegularExpressions.Regex;
-import net.sf.saxon.om.ArrayIterator;
-import net.sf.saxon.om.EmptyIterator;
-import net.sf.saxon.om.Item;
-import net.sf.saxon.om.SequenceIterator;
+import net.sf.saxon.om.*;
 import net.sf.saxon.regex.RegexIterator;
 import net.sf.saxon.value.StringValue;
 
@@ -113,6 +110,9 @@ public class DotNetRegexIterator implements RegexIterator {
         return position;
     }
 
+    public void close() {
+    }
+
     /**
     * Get another iterator over the same items
     * @return a new iterator, positioned before the first item
@@ -126,8 +126,8 @@ public class DotNetRegexIterator implements RegexIterator {
      * Get properties of this iterator, as a bit-significant integer.
      *
      * @return the properties of this iterator. This will be some combination of
-     *         properties such as {@link GROUNDED}, {@link LAST_POSITION_FINDER},
-     *         and {@link LOOKAHEAD}. It is always
+     *         properties such as {@link #GROUNDED}, {@link #LAST_POSITION_FINDER},
+     *         and {@link #LOOKAHEAD}. It is always
      *         acceptable to return the value zero, indicating that there are no known special properties.
      *         It is acceptable for the properties of the iterator to change depending on its state.
      */
@@ -213,5 +213,4 @@ public class DotNetRegexIterator implements RegexIterator {
 // Portions created by (your name) are Copyright (C) (your legal entity). All Rights Reserved.
 //
 // Contributor(s):
-// Portions marked "e.g." are from Edwin Glaser (edwin@pannenleiter.de)
 //

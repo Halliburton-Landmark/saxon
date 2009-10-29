@@ -1,14 +1,10 @@
 package net.sf.saxon.trace;
 
 import net.sf.saxon.Version;
-import net.sf.saxon.value.Value;
-import net.sf.saxon.value.Whitespace;
-import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.expr.ExpressionLocation;
-import net.sf.saxon.om.Item;
-import net.sf.saxon.om.NamePool;
-import net.sf.saxon.om.Navigator;
-import net.sf.saxon.om.NodeInfo;
+import net.sf.saxon.expr.XPathContext;
+import net.sf.saxon.om.*;
+import net.sf.saxon.value.Whitespace;
 
 import java.io.PrintStream;
 import java.util.Iterator;
@@ -21,7 +17,6 @@ import java.util.Iterator;
 
 public abstract class AbstractTraceListener implements TraceListener {
     private int indent = 0;
-    private NamePool pool;
     private PrintStream out = System.err;
     private static StringBuffer spaceBuffer = new StringBuffer("                ");
 
@@ -52,21 +47,21 @@ public abstract class AbstractTraceListener implements TraceListener {
      */
 
     public void enter(InstructionInfo info, XPathContext context) {
+        NamePool pool = context.getNamePool();
         int infotype = info.getConstructType();
-        int objectNameCode = info.getObjectNameCode();
+        StructuredQName qName = info.getObjectName();
         String tag = tag(infotype);
         if (tag==null) {
             // this TraceListener ignores some events to reduce the volume of output
             return;
         }
         String file = ExpressionLocation.truncateURI(info.getSystemId());
-        pool = context.getNamePool();
         String msg = AbstractTraceListener.spaces(indent) + '<' + tag;
         String name = (String)info.getProperty("name");
         if (name!=null) {
             msg += " name=\"" + escape(name) + '"';
-        } else if (objectNameCode != -1) {
-            msg += " name=\"" + escape(pool.getDisplayName(objectNameCode)) + '"';
+        } else if (qName != null) {
+            msg += " name=\"" + escape(qName.getDisplayName()) + '"';
         }
         Iterator props = info.getProperties();
         while (props.hasNext()) {

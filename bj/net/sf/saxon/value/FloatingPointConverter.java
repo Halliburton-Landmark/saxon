@@ -230,8 +230,9 @@ public class FloatingPointConverter {
         int U;
         while (true) {
             k--;
-            U = (int)(R*10 / S);
-            R = R*10 % S;
+            long R10 = R*10;
+            U = (int)(R10 / S);
+            R = R10 - (U * S);    // = R*10 % S, but faster - saves a division
             Mminus = Mminus * 10;
             Mplus = Mplus * 10;
             low = 2*R < Mminus;
@@ -511,6 +512,55 @@ public class FloatingPointConverter {
     }
 
     /**
+     * Append a string representation of a double value to a string buffer, forcing use of
+     * exponential notation
+     * @param s the string buffer to which the result will be appended
+     * @param value the double to be formatted
+     * @return the original string buffer, now containing the string representation of the supplied double
+     */
+
+    public static FastStringBuffer appendDoubleExponential(FastStringBuffer s, double value) {
+        double d = value;
+        if (d == Double.NEGATIVE_INFINITY) {
+            s.append(NEGATIVE_INFINITY);
+        } else if (d == Double.POSITIVE_INFINITY) {
+            s.append(POSITIVE_INFINITY);
+        } else if (d != d) {
+            s.append(NaN);
+        } else if (d == 0.0) {
+            if ((Double.doubleToLongBits(d) & doubleSignMask) != 0) {
+                s.append('-');
+            }
+            s.append('0');
+        } else if (d == Double.MAX_VALUE) {
+            s.append("1.7976931348623157E308");
+        } else if (d == -Double.MAX_VALUE) {
+            s.append("-1.7976931348623157E308");
+        } else if (d == Double.MIN_VALUE) {
+            s.append("4.9E-324");
+        } else if (d == -Double.MIN_VALUE) {
+            s.append("-4.9E-324");
+        } else {
+            if (d < 0) {
+                s.append('-');
+                d = -d;
+            }
+            long bits = Double.doubleToLongBits(d);
+            long fraction = (1L<<52) | (bits & doubleFractMask);
+            long rawExp = (bits & doubleExpMask) >> doubleExpShift;
+            int exp = (int)rawExp - doubleExpBias;
+            if (rawExp == 0) {
+                // don't know how to handle this currently: hand it over to Java to deal with
+                s.append(Double.toString(value));
+                return s;
+            }
+            fppfppExponential(s, exp, fraction, 52);
+        }
+        return s;
+    }
+
+
+    /**
      * Append a string representation of a float value to a string buffer
      * @param s the string buffer to which the result will be appended
      * @param value the float to be formatted
@@ -574,6 +624,56 @@ public class FloatingPointConverter {
         }
         return s;
     }
+
+    /**
+     * Append a string representation of a float value to a string buffer, forcing use of exponential
+     * notation
+     * @param s the string buffer to which the result will be appended
+     * @param value the float to be formatted
+     * @return the original string buffer, now containing the string representation of the supplied float
+     */
+
+    public static FastStringBuffer appendFloatExponential(FastStringBuffer s, float value) {
+        float f = value;
+        if (f == Float.NEGATIVE_INFINITY) {
+            s.append(NEGATIVE_INFINITY);
+        } else if (f == Float.POSITIVE_INFINITY) {
+            s.append(POSITIVE_INFINITY);
+        } else if (f != f) {
+            s.append(NaN);
+        } else if (f == 0.0) {
+            if ((Float.floatToIntBits(f) & floatSignMask) != 0) {
+                s.append('-');
+            }
+            s.append('0');
+        } else if (f == Float.MAX_VALUE) {
+            s.append("3.4028235E38");
+        } else if (f == -Float.MAX_VALUE) {
+            s.append("-3.4028235E38");
+        } else if (f == Float.MIN_VALUE) {
+            s.append("1.4E-45");
+        } else if (f == -Float.MIN_VALUE) {
+            s.append("-1.4E-45");
+        } else {
+            if (f < 0) {
+                s.append('-');
+                f = -f;
+            }
+            int bits = Float.floatToIntBits(f);
+            int fraction = (1<<23) | (bits & floatFractMask);
+            int rawExp = ((bits & floatExpMask) >> floatExpShift);
+            int exp = rawExp - floatExpBias;
+            int precision = 23;
+            if (rawExp == 0) {
+                // don't know how to handle this currently: hand it over to Java to deal with
+                s.append(Float.toString(value));
+                return s;
+            }
+            fppfppExponential(s, exp, fraction, precision);
+        }
+        return s;
+    }
+    
 
 //    public static void main(String[] args) {
 //        if (args.length > 0 && args[0].equals("F")) {

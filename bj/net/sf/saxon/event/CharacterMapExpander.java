@@ -1,11 +1,11 @@
 package net.sf.saxon.event;
 import net.sf.saxon.om.FastStringBuffer;
-import net.sf.saxon.om.XMLChar;
 import net.sf.saxon.sort.IntHashMap;
 import net.sf.saxon.sort.IntIterator;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.tinytree.CompressedWhitespace;
 import net.sf.saxon.value.Whitespace;
+import net.sf.saxon.charcode.UTF16;
 
 import java.util.List;
 
@@ -146,10 +146,10 @@ public class CharacterMapExpander extends ProxyReceiver {
         while(i < in.length()) {
             char c = in.charAt(i++);
             if (c >= min && c <= max) {
-                if (XMLChar.isHighSurrogate(c)) {
+                if (UTF16.isHighSurrogate(c)) {
                     // assume the string is properly formed
                     char d = in.charAt(i++);
-                    int s = XMLChar.supplemental(c, d);
+                    int s = UTF16.combinePair(c, d);
                     String rep = (String)charMap.get(s);
                     if (rep == null) {
                         buffer.append(c);

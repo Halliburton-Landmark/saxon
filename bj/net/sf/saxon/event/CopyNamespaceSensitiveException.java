@@ -1,13 +1,13 @@
 package net.sf.saxon.event;
 
-import net.sf.saxon.trans.DynamicError;
+import net.sf.saxon.trans.XPathException;
 
 /**
  * Exception indicating that an attempt was made to copy namespace-sensitive content
  * without copying its associated namespaces
  */
 
-public class CopyNamespaceSensitiveException extends DynamicError {
+public class CopyNamespaceSensitiveException extends XPathException {
 
     public CopyNamespaceSensitiveException(String message) {
         super(message);

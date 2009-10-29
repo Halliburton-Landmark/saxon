@@ -1,14 +1,10 @@
 package net.sf.saxon.xpath;
-import net.sf.saxon.expr.Binding;
-import net.sf.saxon.expr.BindingReference;
-import net.sf.saxon.expr.VariableDeclaration;
-import net.sf.saxon.expr.XPathContext;
+import net.sf.saxon.expr.*;
 import net.sf.saxon.trans.XPathException;
-import net.sf.saxon.value.EmptySequence;
-import net.sf.saxon.value.QNameValue;
-import net.sf.saxon.value.SequenceType;
-import net.sf.saxon.value.Value;
+import net.sf.saxon.value.*;
 import net.sf.saxon.om.ValueRepresentation;
+import net.sf.saxon.om.StructuredQName;
+import net.sf.saxon.Configuration;
 
 import javax.xml.namespace.QName;
 import javax.xml.xpath.XPathVariableResolver;
@@ -37,17 +33,24 @@ import javax.xml.xpath.XPathVariableResolver;
 
 public final class JAXPVariable implements VariableDeclaration, Binding {
 
-    private QNameValue name;
+    private StructuredQName name;
     private XPathVariableResolver resolver;
 
     /**
-    * Private constructor: for use only be the protected factory method make()
+     * Private constructor: for use only be the protected factory method make()
+     * @param name the name of the variable
+     * @param resolver the resolver used in conjunction with this variable
     */
 
-    public JAXPVariable(QNameValue name, XPathVariableResolver resolver) {
+    protected JAXPVariable(StructuredQName name, XPathVariableResolver resolver) {
         this.name = name;
         this.resolver = resolver;
-    };
+    }
+
+
+    public SequenceType getRequiredType() {
+        return SequenceType.ANY_SEQUENCE;
+    }
 
     /**
      * Indicate whether the binding is local or global. A global binding is one that has a fixed
@@ -78,22 +81,11 @@ public final class JAXPVariable implements VariableDeclaration, Binding {
     }
 
     /**
-     * Get the name of the variable. Used for diagnostic purposes only.
-     * @return the name of the variable, as a string (containing the raw QName)
+     * Get the name of the variable as a structured QName
      */
 
-    public String getVariableName() {
-        return name.getStringValue();
-    }
-
-    /**
-     * Establish the fingerprint of the name of this variable.
-     * Dummy implementation, not used.
-     * @return -1, always
-     */
-
-    public int getNameCode() {
-        return -1;
+    public StructuredQName getVariableQName() {
+        return name;
     }
 
     /**
@@ -114,14 +106,21 @@ public final class JAXPVariable implements VariableDeclaration, Binding {
      */
 
     public ValueRepresentation evaluateVariable(XPathContext context) throws XPathException {
-        Object value = resolver.resolveVariable(
-                (QName)name.makeQName(context.getConfiguration()));
+        Configuration config = context.getConfiguration();
+        Object value = resolver.resolveVariable((QName)name.makeQName(config));
         if (value == null) {
             return EmptySequence.getInstance();
         }
-        return Value.convertJavaObjectToXPath(
-                value, SequenceType.ANY_SEQUENCE, context.getConfiguration());
+        JPConverter converter = JPConverter.allocate(value.getClass(), config);
+        return converter.convert(value, context);
+        //return Value.convertJavaObjectToXPath(value, SequenceType.ANY_SEQUENCE, context);
     }
+
+    /**
+     * Construct a JAXP QName from a Saxon QNameValue
+     * @param in the Saxon QNameValue
+     * @return the JAXP QName
+     */
 
     QName makeQName(QNameValue in) {
         return new QName(in.getNamespaceURI(), in.getLocalName(), in.getPrefix());

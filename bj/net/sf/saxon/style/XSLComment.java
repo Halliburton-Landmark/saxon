@@ -1,9 +1,10 @@
 package net.sf.saxon.style;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.ExpressionTool;
+import net.sf.saxon.expr.StringLiteral;
 import net.sf.saxon.instruct.Comment;
 import net.sf.saxon.instruct.Executable;
 import net.sf.saxon.om.AttributeCollection;
+import net.sf.saxon.om.StandardNames;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.StringValue;
 
@@ -22,7 +23,7 @@ public final class XSLComment extends XSLStringConstructor {
 			int nc = atts.getNameCode(a);
 			String f = getNamePool().getClarkName(nc);
 			if (f==StandardNames.SELECT) {
-        		selectAtt = atts.getValue(a).trim();
+        		selectAtt = atts.getValue(a);
         	} else {
         		checkUnknownAttribute(nc);
         	}
@@ -35,7 +36,6 @@ public final class XSLComment extends XSLStringConstructor {
 
     public void validate() throws XPathException {
         select = typeCheck("select", select);
-        checkWithinTemplate();
         super.validate();
     }
 
@@ -51,9 +51,7 @@ public final class XSLComment extends XSLStringConstructor {
 
     public Expression compile(Executable exec) throws XPathException {
         Comment inst = new Comment();
-        compileContent(exec, inst, StringValue.SINGLE_SPACE);
-        //inst.setSeparator(new StringValue(select==null ? "" : " "));
-        ExpressionTool.makeParentReferences(inst);
+        compileContent(exec, inst, new StringLiteral(StringValue.SINGLE_SPACE));
         return inst;
     }
 

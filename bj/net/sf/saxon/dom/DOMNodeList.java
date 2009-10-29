@@ -3,7 +3,6 @@ import net.sf.saxon.om.Item;
 import net.sf.saxon.om.NodeInfo;
 import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.om.VirtualNode;
-import net.sf.saxon.trans.DynamicError;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.SequenceExtent;
 import org.w3c.dom.Node;
@@ -33,19 +32,19 @@ public final class DOMNodeList implements org.w3c.dom.NodeList {
     */
 
     public static DOMNodeList checkAndMake(SequenceExtent extent) throws XPathException {
-        SequenceIterator it = extent.iterate(null);
+        SequenceIterator it = extent.iterate();
         List list = new ArrayList(extent.getLength());
         while (true) {
             Item next = it.next();
             if (next==null) break;
             Object o = next;
             if (!(o instanceof NodeInfo)) {
-                throw new DynamicError("Supplied sequence contains an item that is not a Saxon NodeInfo");
+                throw new XPathException("Supplied sequence contains an item that is not a Saxon NodeInfo");
             }
             if (o instanceof VirtualNode) {
                 o = ((VirtualNode)o).getUnderlyingNode();
                 if (!(o instanceof Node)) {
-                    throw new DynamicError("Supplied sequence contains an item that is not a wrapper around a DOM Node");
+                    throw new XPathException("Supplied sequence contains an item that is not a wrapper around a DOM Node");
                 }
                 list.add(o);
             }
@@ -53,14 +52,6 @@ public final class DOMNodeList implements org.w3c.dom.NodeList {
         }
         return new DOMNodeList(list);
     }
-
-    /**
-     * Return the sequence of nodes as a Saxon Value
-     */
-
-//    public Value getSequence() {
-//        return sequence;
-//    }
 
     /**
     * return the number of nodes in the list (DOM method)
@@ -71,23 +62,17 @@ public final class DOMNodeList implements org.w3c.dom.NodeList {
     }
 
     /**
-    * Return the n'th item in the list (DOM method)
-    * @throws java.lang.ClassCastException if the item is not a DOM Node
-    */
+     * Return the n'th item in the list (DOM method)
+     * @return the n'th node in the node list, counting from zero; or null if the index is out of range
+     * @throws java.lang.ClassCastException if the item is not a DOM Node
+     */
 
     public Node item(int index) {
-        return (Node)sequence.get(index);
-//        while (o instanceof VirtualNode) {
-//            o = ((VirtualNode)o).getUnderlyingNode();
-//        }
-//        if (o instanceof Node) {
-//            return (Node)o;
-//        } else if (o instanceof NodeInfo) {
-//            return NodeOverNodeInfo.wrap((NodeInfo)o);
-//        } else {
-//            throw new IllegalStateException(
-//                    "Sequence cannot be used as a DOM NodeList, because it contains an item that is not a node");
-//        }
+        if (index < 0 || index >= sequence.size()) {
+            return null;
+        } else {
+            return (Node)sequence.get(index);
+        }
     }
 
 }

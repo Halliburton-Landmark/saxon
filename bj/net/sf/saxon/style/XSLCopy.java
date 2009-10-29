@@ -4,12 +4,13 @@ import net.sf.saxon.expr.*;
 import net.sf.saxon.instruct.*;
 import net.sf.saxon.om.AttributeCollection;
 import net.sf.saxon.om.Axis;
+import net.sf.saxon.om.StandardNames;
 import net.sf.saxon.om.Validation;
 import net.sf.saxon.pattern.NodeKindTest;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.SchemaType;
-import net.sf.saxon.value.EmptySequence;
 import net.sf.saxon.value.SequenceType;
+import net.sf.saxon.value.Whitespace;
 
 /**
 * Handler for xsl:copy elements in stylesheet. <br>
@@ -53,16 +54,16 @@ public class XSLCopy extends StyleElement {
 		for (int a=0; a<atts.getLength(); a++) {
 			int nc = atts.getNameCode(a);
 			String f = getNamePool().getClarkName(nc);
-			if (f==StandardNames.USE_ATTRIBUTE_SETS) {
+			if (f.equals(StandardNames.USE_ATTRIBUTE_SETS)) {
         		use = atts.getValue(a);
-            } else if (f==StandardNames.COPY_NAMESPACES) {
-                copyNamespacesAtt = atts.getValue(a).trim();
-            } else if (f==StandardNames.TYPE) {
-                typeAtt = atts.getValue(a).trim();
-            } else if (f==StandardNames.VALIDATION) {
-                validationAtt = atts.getValue(a).trim();
-            } else if (f==StandardNames.INHERIT_NAMESPACES) {
-                inheritAtt = atts.getValue(a).trim();
+            } else if (f.equals(StandardNames.COPY_NAMESPACES)) {
+                copyNamespacesAtt = Whitespace.trim(atts.getValue(a));
+            } else if (f.equals(StandardNames.TYPE)) {
+                typeAtt = Whitespace.trim(atts.getValue(a));
+            } else if (f.equals(StandardNames.VALIDATION)) {
+                validationAtt = Whitespace.trim(atts.getValue(a));
+            } else if (f.equals(StandardNames.INHERIT_NAMESPACES)) {
+                inheritAtt = Whitespace.trim(atts.getValue(a));
         	} else {
         		checkUnknownAttribute(nc);
         	}
@@ -98,6 +99,7 @@ public class XSLCopy extends StyleElement {
             if (!getConfiguration().isSchemaAware(Configuration.XSLT)) {
                 compileError("The @type attribute is available only with a schema-aware XSLT processor", "XTSE1660");
             }
+            validationAction = Validation.BY_TYPE;
         }
         if (inheritAtt != null) {
             if (inheritAtt.equals("yes")) {
@@ -116,7 +118,6 @@ public class XSLCopy extends StyleElement {
     }
 
     public void validate() throws XPathException {
-        checkWithinTemplate();
         if (use!=null) {
             attributeSets = getAttributeSets(use, null);         // find any referenced attribute sets
         }
@@ -136,23 +137,20 @@ public class XSLCopy extends StyleElement {
             Expression condition = new InstanceOfExpression(
                     new ContextItemExpression(),
                     SequenceType.makeSequenceType(NodeKindTest.ELEMENT, StaticProperty.EXACTLY_ONE));
-            Expression choice = new IfExpression(condition, use, EmptySequence.getInstance());
+            Expression choice = Choose.makeConditional(condition, use);
             if (content == null) {
                 content = choice;
             } else {
                 content = Block.makeBlock(choice, content);
-                if (content instanceof ComputedExpression) {
-                    ((ComputedExpression)content).setLocationId(
+                content.setLocationId(
                             allocateLocationId(getSystemId(), getLineNumber()));
-                }
             }
         }
 
         if (content == null) {
-            content = EmptySequence.getInstance();
+            content = Literal.makeEmptySequence();
         }
         inst.setContentExpression(content);
-        ExpressionTool.makeParentReferences(inst);
         return inst;
     }
 

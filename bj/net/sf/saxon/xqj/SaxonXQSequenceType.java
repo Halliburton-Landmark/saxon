@@ -4,18 +4,10 @@ import net.sf.saxon.Configuration;
 import net.sf.saxon.expr.StaticProperty;
 import net.sf.saxon.value.SequenceType;
 
-import net.sf.saxon.javax.xml.xquery.XQItemType;
-import net.sf.saxon.javax.xml.xquery.XQSequenceType;
+import javax.xml.xquery.XQItemType;
+import javax.xml.xquery.XQSequenceType;
 
-import net.sf.saxon.javax.xml.xquery.XQSequenceType;
 
-/**
- * Created by IntelliJ IDEA.
- * User: Mike
- * Date: 14-May-2006
- * Time: 20:36:38
- * To change this template use File | Settings | File Templates.
- */
 public class SaxonXQSequenceType implements XQSequenceType {
 
     SequenceType sequenceType;

@@ -1,11 +1,14 @@
 package net.sf.saxon.functions;
 import net.sf.saxon.expr.*;
-import net.sf.saxon.om.*;
+import net.sf.saxon.om.DocumentPool;
+import net.sf.saxon.om.FastStringBuffer;
+import net.sf.saxon.om.Item;
+import net.sf.saxon.om.NodeInfo;
 import net.sf.saxon.trans.XPathException;
+import net.sf.saxon.type.Type;
+import net.sf.saxon.value.AnyURIValue;
 import net.sf.saxon.value.QNameValue;
 import net.sf.saxon.value.StringValue;
-import net.sf.saxon.value.AnyURIValue;
-import net.sf.saxon.type.Type;
 
 /**
 * This class supports the name(), local-name(), and namespace-uri() functions
@@ -23,11 +26,12 @@ public class NamePart extends SystemFunction {
 
     /**
     * Simplify and validate.
-    */
+     * @param visitor an expression visitor
+     */
 
-     public Expression simplify(StaticContext env) throws XPathException {
+     public Expression simplify(ExpressionVisitor visitor) throws XPathException {
         useContextItemAsDefault();
-        return simplifyArguments(env);
+        return simplifyArguments(visitor);
     }
 
     /**
@@ -96,7 +100,7 @@ public class NamePart extends SystemFunction {
                     } else if ("".equals(docURI)) {
                         return null;
                     } else {
-                        return StringValue.makeStringValue(docURI);
+                        return new AnyURIValue(docURI);
                     }
                 } else {
                     return null;

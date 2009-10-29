@@ -4,7 +4,6 @@ import net.sf.saxon.om.Item;
 import net.sf.saxon.om.NodeInfo;
 import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.sort.GlobalOrderComparer;
-import net.sf.saxon.trans.DynamicError;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.SingletonNode;
 
@@ -85,8 +84,7 @@ public abstract class Sets  {
                     }
                 }
             } else {
-                DynamicError e = new DynamicError(
-                        "Operand of leading() contains an item that is not a node");
+                XPathException e = new XPathException("Operand of leading() contains an item that is not a node");
                 e.setXPathContext(context);
                 throw e;
             }
@@ -97,7 +95,7 @@ public abstract class Sets  {
         Expression filter = new IdentityComparison(
                                     new ContextItemExpression(),
                                     Token.PRECEDES,
-                                    new SingletonNode(first));
+                                    Literal.makeLiteral(new SingletonNode(first)));
 
         return new FilterIterator(ns1, filter, context);
 

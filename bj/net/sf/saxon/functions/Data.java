@@ -1,7 +1,8 @@
 package net.sf.saxon.functions;
 import net.sf.saxon.expr.Atomizer;
 import net.sf.saxon.expr.Expression;
-import net.sf.saxon.expr.StaticContext;
+import net.sf.saxon.expr.ExpressionVisitor;
+import net.sf.saxon.expr.ExpressionTool;
 import net.sf.saxon.trans.XPathException;
 
 /**
@@ -12,13 +13,13 @@ public class Data extends CompileTimeFunction {
 
     /**
     * Simplify and validate.
-    */
+     * @param visitor an expression visitor
+     */
 
-     public Expression simplify(StaticContext env) throws XPathException {
-        Atomizer a = new Atomizer(argument[0], env.getConfiguration());
-        a.setLocationId(getLocationId());
-        a.setParentExpression(getParentExpression());
-        return a.simplify(env);
+     public Expression simplify(ExpressionVisitor visitor) throws XPathException {
+        Atomizer a = new Atomizer(argument[0], visitor.getConfiguration());
+        ExpressionTool.copyLocationInfo(this, a);
+        return visitor.simplify(a);
     }
 
 }

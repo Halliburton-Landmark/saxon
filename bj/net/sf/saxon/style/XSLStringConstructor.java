@@ -1,13 +1,13 @@
 package net.sf.saxon.style;
 
 import net.sf.saxon.expr.Expression;
+import net.sf.saxon.expr.StringLiteral;
 import net.sf.saxon.instruct.Executable;
 import net.sf.saxon.instruct.SimpleContentConstructor;
 import net.sf.saxon.instruct.SimpleNodeConstructor;
 import net.sf.saxon.om.Axis;
 import net.sf.saxon.om.AxisIterator;
 import net.sf.saxon.om.NodeInfo;
-import net.sf.saxon.trans.StaticError;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.Type;
 import net.sf.saxon.value.StringValue;
@@ -53,13 +53,13 @@ public abstract class XSLStringConstructor extends StyleElement {
             if (first == null) {
                 // there are no child nodes and no select attribute
                 //stringValue = "";
-                select = StringValue.EMPTY_STRING;
+                select = new StringLiteral(StringValue.EMPTY_STRING);
             } else {
                 if (kids.next() == null) {
                     // there is exactly one child node
                     if (first.getNodeKind() == Type.TEXT) {
                         // it is a text node: optimize for this case
-                        select = StringValue.makeStringValue(first.getStringValueCS());
+                        select = new StringLiteral(first.getStringValue());
                     }
                 }
             }
@@ -75,18 +75,20 @@ public abstract class XSLStringConstructor extends StyleElement {
 
     protected void compileContent(Executable exec, SimpleNodeConstructor inst, Expression separator) throws XPathException {
         if (separator == null) {
-            separator = StringValue.SINGLE_SPACE;
+            separator = new StringLiteral(StringValue.SINGLE_SPACE);
         }
         try {
             if (select != null) {
-                inst.setSelect(new SimpleContentConstructor(select, separator)
-                        .simplify(getStaticContext()), exec.getConfiguration());
+                inst.setSelect(
+                        makeExpressionVisitor().simplify(new SimpleContentConstructor(select, separator)),
+                        exec.getConfiguration());
             } else {
                 Expression content = compileSequenceConstructor(exec, iterateAxis(Axis.CHILD), true);
-                inst.setSelect(new SimpleContentConstructor(content, separator)
-                        .simplify(getStaticContext()), exec.getConfiguration());
+                inst.setSelect(
+                        makeExpressionVisitor().simplify(new SimpleContentConstructor(content, separator)),
+                        exec.getConfiguration());
             }
-        } catch (StaticError err) {
+        } catch (XPathException err) {
             compileError(err);
         }
     }

@@ -1,7 +1,6 @@
 package net.sf.saxon.jdom;
 
 import net.sf.saxon.Query;
-import net.sf.saxon.trans.DynamicError;
 import net.sf.saxon.trans.XPathException;
 import org.jdom.JDOMException;
 import org.jdom.input.SAXBuilder;
@@ -31,9 +30,9 @@ public class JDOMQuery extends Query {
             }
             return jdomSources;
         } catch (JDOMException e) {
-            throw new DynamicError(e);
+            throw new XPathException(e);
         } catch (IOException e) {
-            throw new DynamicError(e);
+            throw new XPathException(e);
         }
     }
 
